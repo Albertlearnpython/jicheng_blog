@@ -1,0 +1,26 @@
+{% extends "blog/base.html" %}
+
+{% block title %}{{ post.title }}{% endblock %}
+
+{% block page_title %}文章详情{% endblock %}
+{% block page_intro %}你正在阅读完整文章内容。{% endblock %}
+
+{% block hero_actions %}
+    <div class="hero-actions">
+        <a class="button" href="{% url 'chat-page' %}">打开手机问答</a>
+    </div>
+{% endblock %}
+
+{% block content %}
+    <article class="detail-card">
+        <div class="meta">
+            <span>作者：{{ post.author.username }}</span>
+            <span>发布时间：{{ post.date_posted|date:"Y-m-d H:i" }}</span>
+        </div>
+        <h2>{{ post.title }}</h2>
+        <div class="detail-body">
+            {{ post.content|linebreaks }}
+        </div>
+        <a class="back-link" href="{% url 'blog-home' %}">返回文章列表</a>
+    </article>
+{% endblock %}

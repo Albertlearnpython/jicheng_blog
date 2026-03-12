@@ -1,0 +1,35 @@
+{% extends "blog/base.html" %}
+
+{% block title %}博客首页{% endblock %}
+
+{% block page_title %}最新文章{% endblock %}
+{% block page_intro %}这里展示最近发布的文章，也可以直接打开手机问答页面体验聊天接口。{% endblock %}
+
+{% block hero_actions %}
+    <div class="hero-actions">
+        <a class="button" href="{% url 'chat-page' %}">打开手机问答</a>
+    </div>
+{% endblock %}
+
+{% block content %}
+    {% for post in posts %}
+        <article class="post-card">
+            <div class="meta">
+                <span>作者：{{ post.author.username }}</span>
+                <span>发布时间：{{ post.date_posted|date:"Y-m-d H:i" }}</span>
+            </div>
+            <h2>
+                <a href="{% url 'post-detail' post.pk %}">{{ post.title }}</a>
+            </h2>
+            <div class="post-body">
+                {{ post.content|truncatechars:180|linebreaks }}
+            </div>
+            <a class="button" href="{% url 'post-detail' post.pk %}">阅读全文</a>
+        </article>
+    {% empty %}
+        <section class="empty-state">
+            <h2>还没有文章</h2>
+            <p>你可以先在后台创建文章，创建后这里会自动显示。</p>
+        </section>
+    {% endfor %}
+{% endblock %}
