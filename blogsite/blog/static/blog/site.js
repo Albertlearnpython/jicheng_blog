@@ -8,25 +8,166 @@
         theme: "blog.theme",
         font: "blog.font",
         density: "blog.density",
+        sound: "blog.sound",
     };
 
     const defaults = {
         theme: "paper",
         font: "sans",
         density: "comfortable",
+        sound: "on",
+    };
+
+    const storage = {
+        get(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch (error) {
+                return null;
+            }
+        },
+        set(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (error) {
+                return;
+            }
+        },
     };
 
     const applySetting = (type, value) => {
         body.dataset[type] = value;
-        localStorage.setItem(storageKeys[type], value);
+        storage.set(storageKeys[type], value);
         document.querySelectorAll(`[data-${type}-value]`).forEach((button) => {
             button.classList.toggle("is-active", button.dataset[`${type}Value`] === value);
         });
     };
 
-    Object.entries(defaults).forEach(([type, value]) => {
-        applySetting(type, localStorage.getItem(storageKeys[type]) || value);
-    });
+    Object.entries(defaults)
+        .filter(([type]) => type !== "sound")
+        .forEach(([type, value]) => {
+            applySetting(type, storage.get(storageKeys[type]) || value);
+        });
+
+    let audioContext = null;
+
+    const getAudioContext = () => {
+        const Context = window.AudioContext || window.webkitAudioContext;
+        if (!Context) {
+            return null;
+        }
+        if (!audioContext) {
+            try {
+                audioContext = new Context();
+            } catch (error) {
+                return null;
+            }
+        }
+        return audioContext;
+    };
+
+    const soundButtons = document.querySelectorAll("[data-sound-toggle]");
+
+    const isSoundEnabled = () => body.dataset.sound !== "off";
+
+    const renderSoundState = (enabled) => {
+        body.dataset.sound = enabled ? "on" : "off";
+        storage.set(storageKeys.sound, body.dataset.sound);
+        soundButtons.forEach((button) => {
+            button.classList.toggle("is-active", enabled);
+            button.setAttribute("aria-pressed", String(enabled));
+            button.setAttribute("aria-label", enabled ? "关闭音效" : "开启音效");
+            button.title = enabled ? "关闭音效" : "开启音效";
+        });
+    };
+
+    const scheduleTone = ({ start = 0, duration = 0.06, frequency = 660, frequencyEnd = null, gain = 0.035, type = "triangle" }) => {
+        const context = getAudioContext();
+        if (!context) {
+            return;
+        }
+
+        const now = context.currentTime + start;
+        const oscillator = context.createOscillator();
+        const amplifier = context.createGain();
+
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, now);
+        if (frequencyEnd) {
+            oscillator.frequency.exponentialRampToValueAtTime(Math.max(frequencyEnd, 1), now + duration);
+        }
+
+        amplifier.gain.setValueAtTime(0.0001, now);
+        amplifier.gain.exponentialRampToValueAtTime(gain, now + 0.01);
+        amplifier.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        oscillator.connect(amplifier);
+        amplifier.connect(context.destination);
+        oscillator.start(now);
+        oscillator.stop(now + duration + 0.02);
+    };
+
+    const playUiSound = (preset) => {
+        if (!isSoundEnabled()) {
+            return;
+        }
+
+        const context = getAudioContext();
+        if (!context) {
+            return;
+        }
+
+        if (context.state === "suspended") {
+            context.resume().catch(() => undefined);
+        }
+
+        if (preset === "switch") {
+            scheduleTone({ frequency: 520, frequencyEnd: 620, duration: 0.06, gain: 0.026, type: "square" });
+            scheduleTone({ start: 0.04, frequency: 780, frequencyEnd: 980, duration: 0.08, gain: 0.022, type: "triangle" });
+            return;
+        }
+
+        if (preset === "open") {
+            scheduleTone({ frequency: 300, frequencyEnd: 380, duration: 0.08, gain: 0.024, type: "triangle" });
+            scheduleTone({ start: 0.05, frequency: 540, frequencyEnd: 720, duration: 0.09, gain: 0.02, type: "triangle" });
+            return;
+        }
+
+        if (preset === "close") {
+            scheduleTone({ frequency: 560, frequencyEnd: 420, duration: 0.08, gain: 0.02, type: "triangle" });
+            scheduleTone({ start: 0.03, frequency: 360, frequencyEnd: 280, duration: 0.08, gain: 0.016, type: "square" });
+            return;
+        }
+
+        if (preset === "tab") {
+            scheduleTone({ frequency: 620, frequencyEnd: 760, duration: 0.05, gain: 0.022, type: "triangle" });
+            scheduleTone({ start: 0.03, frequency: 880, frequencyEnd: 1040, duration: 0.06, gain: 0.018, type: "triangle" });
+            return;
+        }
+
+        if (preset === "confirm") {
+            scheduleTone({ frequency: 460, frequencyEnd: 520, duration: 0.05, gain: 0.022, type: "square" });
+            scheduleTone({ start: 0.03, frequency: 740, frequencyEnd: 880, duration: 0.08, gain: 0.024, type: "triangle" });
+            return;
+        }
+
+        if (preset === "enable") {
+            scheduleTone({ frequency: 480, frequencyEnd: 620, duration: 0.06, gain: 0.024, type: "triangle" });
+            scheduleTone({ start: 0.05, frequency: 760, frequencyEnd: 980, duration: 0.09, gain: 0.02, type: "triangle" });
+            return;
+        }
+
+        if (preset === "disable") {
+            scheduleTone({ frequency: 720, frequencyEnd: 560, duration: 0.07, gain: 0.02, type: "triangle" });
+            scheduleTone({ start: 0.04, frequency: 420, frequencyEnd: 320, duration: 0.08, gain: 0.016, type: "square" });
+            return;
+        }
+
+        scheduleTone({ frequency: 520, frequencyEnd: 460, duration: 0.05, gain: 0.018, type: "square" });
+        scheduleTone({ start: 0.03, frequency: 720, frequencyEnd: 640, duration: 0.05, gain: 0.016, type: "triangle" });
+    };
+
+    renderSoundState((storage.get(storageKeys.sound) || defaults.sound) !== "off");
 
     document.querySelectorAll("[data-theme-value]").forEach((button) => {
         button.addEventListener("click", () => applySetting("theme", button.dataset.themeValue));
@@ -47,12 +188,28 @@
         });
     });
 
+    soundButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            if (isSoundEnabled()) {
+                playUiSound("disable");
+                window.setTimeout(() => renderSoundState(false), 60);
+                return;
+            }
+
+            renderSoundState(true);
+            playUiSound("enable");
+        });
+    });
+
     const closeSidebar = () => body.classList.remove("sidebar-open");
     document.querySelectorAll("[data-sidebar-toggle]").forEach((button) => {
         button.addEventListener("click", () => body.classList.toggle("sidebar-open"));
     });
     document.querySelectorAll("[data-sidebar-overlay]").forEach((overlay) => {
-        overlay.addEventListener("click", closeSidebar);
+        overlay.addEventListener("click", () => {
+            closeSidebar();
+            playUiSound("close");
+        });
     });
 
     document.querySelectorAll("[data-tab-button]").forEach((button) => {
@@ -66,6 +223,34 @@
             });
         });
     });
+
+    document.addEventListener(
+        "click",
+        (event) => {
+            const trigger = event.target.closest("a, button, summary");
+            if (!trigger || trigger.matches("[data-sound-toggle]")) {
+                return;
+            }
+
+            if (trigger.matches(":disabled, [aria-disabled='true']")) {
+                return;
+            }
+
+            let preset = "click";
+            if (trigger.matches("[data-theme-toggle], [data-theme-value], [data-font-value], [data-density-value]")) {
+                preset = "switch";
+            } else if (trigger.matches("[data-sidebar-toggle]")) {
+                preset = body.classList.contains("sidebar-open") ? "open" : "close";
+            } else if (trigger.matches("[data-tab-button], summary")) {
+                preset = "tab";
+            } else if (trigger.matches(".primary-button")) {
+                preset = "confirm";
+            }
+
+            playUiSound(preset);
+        },
+        { passive: true }
+    );
 
     const runtimeLabels = document.querySelectorAll("[data-runtime-label]");
     const siteStart = body.dataset.siteStart ? new Date(body.dataset.siteStart) : null;

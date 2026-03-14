@@ -21,8 +21,9 @@
     --radius-xl: 28px;
     --radius-lg: 22px;
     --radius-md: 16px;
-    --card-padding: 28px;
-    --card-gap: 22px;
+    --shell-width: min(1360px, calc(100% - 56px));
+    --card-padding: 34px;
+    --card-gap: 28px;
 }
 
 body[data-theme="midnight"] {
@@ -48,9 +49,14 @@ body[data-font="serif"] {
     --body-font: var(--font-serif);
 }
 
+body[data-density="comfortable"] {
+    --card-padding: 34px;
+    --card-gap: 28px;
+}
+
 body[data-density="compact"] {
-    --card-padding: 20px;
-    --card-gap: 16px;
+    --card-padding: 24px;
+    --card-gap: 18px;
 }
 
 * {
@@ -67,6 +73,8 @@ body {
     background: var(--bg-accent);
     color: var(--text);
     font-family: var(--body-font);
+    line-height: 1.65;
+    background-attachment: fixed;
     transition: background 0.25s ease, color 0.25s ease;
 }
 
@@ -94,9 +102,9 @@ select {
 }
 
 .shell {
-    width: min(1240px, calc(100% - 32px));
+    width: var(--shell-width);
     margin: 0 auto;
-    padding: 24px 0 40px;
+    padding: 32px 0 72px;
     position: relative;
     z-index: 1;
 }
@@ -107,21 +115,22 @@ select {
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow);
     backdrop-filter: blur(20px);
+    position: relative;
 }
 
 .topbar {
-    padding: 16px 18px;
+    padding: 20px 22px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 20px;
+    gap: 24px;
+    margin-bottom: 30px;
 }
 
 .brand-group {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
 }
 
 .brand-mark {
@@ -165,7 +174,7 @@ select {
 .chat-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
 .ghost-button,
@@ -177,13 +186,13 @@ select {
     border: 0;
     border-radius: 999px;
     cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ghost-button,
 .primary-button {
-    min-height: 42px;
-    padding: 0 18px;
+    min-height: 46px;
+    padding: 0 20px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -215,11 +224,19 @@ select {
 }
 
 .icon-button {
-    width: 42px;
-    height: 42px;
+    width: 46px;
+    height: 46px;
     display: grid;
     place-items: center;
     font-size: 18px;
+}
+
+.icon-button.is-active,
+.icon-button[aria-pressed="true"] {
+    background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
 }
 
 .chip,
@@ -257,26 +274,26 @@ select {
 .chat-stage,
 .landing-shell {
     display: grid;
-    gap: 24px;
+    gap: 32px;
 }
 
 .blog-layout,
 .chat-stage {
-    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
 }
 
 .content-column,
 .landing-content {
     display: grid;
-    gap: 20px;
+    gap: 28px;
 }
 
 .sidebar {
     position: sticky;
-    top: 24px;
+    top: 32px;
     height: fit-content;
     display: grid;
-    gap: 18px;
+    gap: 22px;
 }
 
 .sidebar-card,
@@ -286,10 +303,10 @@ select {
 
 .nav-link {
     display: block;
-    padding: 12px 14px;
+    padding: 14px 16px;
     border-radius: 14px;
     color: var(--muted);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     border: 1px solid transparent;
 }
 
@@ -304,22 +321,23 @@ select {
 .chat-form,
 .field {
     display: grid;
-    gap: 10px;
+    gap: 12px;
 }
 
 .search-form input,
 .chat-form textarea,
 .chat-form select {
     width: 100%;
-    border-radius: 16px;
+    border-radius: 18px;
     border: 1px solid var(--line);
-    padding: 14px 16px;
+    padding: 16px 18px;
     background: var(--surface-strong);
     color: var(--text);
 }
 
 .hero-card,
 .detail-hero,
+.landing-hero,
 .detail-card,
 .info-strip,
 .pagination,
@@ -334,35 +352,44 @@ select {
     padding: var(--card-padding);
 }
 
+.hero-card,
+.detail-hero,
+.landing-hero,
+.detail-card,
+.chat-card {
+    display: grid;
+    gap: 20px;
+}
+
 .hero-card h1,
 .detail-hero h1,
 .landing-hero h1 {
-    margin: 0 0 14px;
-    font-size: clamp(34px, 6vw, 58px);
-    line-height: 1.02;
+    margin: 0;
+    font-size: clamp(36px, 6vw, 64px);
+    line-height: 1.04;
 }
 
 .landing-hero,
 .landing-sidebar {
-    padding: 30px;
+    padding: 38px;
 }
 
 .landing-shell {
-    grid-template-columns: minmax(290px, 330px) minmax(0, 1fr);
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
 }
 
 .landing-sidebar {
     position: sticky;
-    top: 24px;
+    top: 32px;
     height: fit-content;
     display: grid;
-    gap: 22px;
+    gap: 26px;
 }
 
 .avatar-block {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    align-items: flex-start;
+    gap: 18px;
 }
 
 .avatar-mark,
@@ -398,12 +425,12 @@ select {
 
 .timeline-list {
     display: grid;
-    gap: 14px;
+    gap: 18px;
 }
 
 .timeline-list li {
     position: relative;
-    padding-left: 18px;
+    padding-left: 20px;
 }
 
 .timeline-list li::before {
@@ -437,11 +464,11 @@ select {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
+    gap: 18px;
 }
 
 .section-heading-spaced {
-    margin-top: 8px;
+    margin-top: 14px;
 }
 
 .stat-grid,
@@ -450,18 +477,18 @@ select {
 .intro-grid,
 .related-grid {
     display: grid;
-    gap: 18px;
+    gap: 22px;
 }
 
 .stat-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 24px;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    margin-top: 8px;
 }
 
 .stat-card,
 .metric {
-    padding: 16px 18px;
-    border-radius: 18px;
+    padding: 18px 20px;
+    border-radius: 20px;
     border: 1px solid var(--line);
     background: var(--surface-soft);
 }
@@ -478,14 +505,14 @@ select {
 }
 
 .tab-strip {
-    padding: 12px;
+    padding: 14px;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
 .tab-button {
-    padding: 12px 18px;
+    padding: 13px 20px;
     font-weight: 700;
 }
 
@@ -502,7 +529,7 @@ select {
 
 .tab-panel.is-active {
     display: grid;
-    gap: 20px;
+    gap: 28px;
 }
 
 .project-grid,
@@ -517,7 +544,24 @@ select {
 .intro-card,
 .related-card {
     display: grid;
-    gap: 14px;
+    gap: 16px;
+    min-height: 100%;
+}
+
+.article-card,
+.project-card,
+.recent-card,
+.related-card {
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.article-card:hover,
+.project-card:hover,
+.recent-card:hover,
+.related-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(37, 99, 235, 0.18);
+    box-shadow: 0 30px 70px rgba(15, 23, 42, 0.12);
 }
 
 .project-card h3,
@@ -533,12 +577,17 @@ select {
 
 .article-stack {
     display: grid;
+    gap: 24px;
+}
+
+.article-card {
+    display: grid;
     gap: 18px;
 }
 
 .article-head {
     display: flex;
-    gap: 18px;
+    gap: 22px;
     align-items: flex-start;
 }
 
@@ -547,8 +596,9 @@ select {
 }
 
 .article-meta h2 {
-    margin: 10px 0 12px;
-    font-size: 28px;
+    margin: 12px 0 14px;
+    font-size: clamp(26px, 4vw, 32px);
+    line-height: 1.18;
 }
 
 .article-meta h2 a:hover,
@@ -560,25 +610,25 @@ select {
 
 .meta-row {
     color: var(--muted);
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .article-excerpt,
 .recent-card p,
 .related-card p,
 .detail-prose {
-    font-size: 16px;
-    line-height: 1.9;
+    font-size: 17px;
+    line-height: 1.95;
 }
 
 .article-actions {
-    margin-top: 18px;
+    margin-top: 4px;
 }
 
 .pagination {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
 .page-chip {
@@ -598,10 +648,10 @@ select {
 
 .reading-progress {
     position: sticky;
-    top: 6px;
+    top: 10px;
     z-index: 4;
     height: 4px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     border-radius: 999px;
     background: rgba(127, 127, 127, 0.14);
     overflow: hidden;
@@ -618,22 +668,22 @@ select {
 .detail-prose h3,
 .detail-prose h4,
 .detail-prose h5 {
-    margin: 34px 0 14px;
-    font-size: 28px;
+    margin: 38px 0 18px;
+    font-size: 30px;
     line-height: 1.2;
 }
 
 .detail-prose blockquote {
-    margin: 22px 0;
-    padding: 16px 18px;
+    margin: 28px 0;
+    padding: 18px 22px;
     border-left: 4px solid var(--brand);
     background: var(--surface-soft);
-    border-radius: 0 16px 16px 0;
+    border-radius: 0 20px 20px 0;
 }
 
 .detail-prose pre {
-    margin: 22px 0;
-    padding: 18px;
+    margin: 28px 0;
+    padding: 22px;
     border-radius: 18px;
     overflow: auto;
     background: rgba(10, 23, 42, 0.92);
@@ -674,7 +724,7 @@ select {
 
 .faq-list {
     display: grid;
-    gap: 16px;
+    gap: 18px;
 }
 
 .faq-item summary {
@@ -682,6 +732,7 @@ select {
     font-size: 18px;
     font-weight: 700;
     list-style: none;
+    line-height: 1.5;
 }
 
 .faq-item summary::-webkit-details-marker {
@@ -689,7 +740,7 @@ select {
 }
 
 .faq-item p {
-    margin: 16px 0 0;
+    margin: 18px 0 0;
     line-height: 1.8;
 }
 
@@ -704,12 +755,12 @@ select {
 
 .chat-messages {
     display: grid;
-    gap: 14px;
+    gap: 16px;
 }
 
 .message {
-    padding: 16px 18px;
-    border-radius: 20px;
+    padding: 18px 20px;
+    border-radius: 22px;
     background: var(--surface-soft);
     border: 1px solid var(--line);
 }
@@ -739,7 +790,7 @@ select {
 
 .chat-controls {
     display: grid;
-    gap: 14px;
+    gap: 16px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -756,7 +807,7 @@ select {
 
 .idea-list {
     display: grid;
-    gap: 12px;
+    gap: 14px;
 }
 
 .idea-list li,
@@ -782,7 +833,7 @@ select {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    gap: 12px;
+    gap: 14px;
     font-size: 14px;
 }
 
@@ -796,11 +847,11 @@ select {
 
 .control-group {
     display: grid;
-    gap: 12px;
+    gap: 14px;
 }
 
 .control-group + .control-group {
-    margin-top: 16px;
+    margin-top: 20px;
 }
 
 .control-group strong {
@@ -832,12 +883,18 @@ body.sidebar-open .mobile-overlay {
     .chat-stage,
     .landing-shell {
         grid-template-columns: 1fr;
+        gap: 24px;
     }
 
     .sidebar,
     .landing-sidebar,
     .chat-side {
         position: static;
+    }
+
+    .content-column,
+    .landing-content {
+        gap: 24px;
     }
 
     .stat-grid,
@@ -851,13 +908,15 @@ body.sidebar-open .mobile-overlay {
 
 @media (max-width: 820px) {
     .shell {
-        width: min(100% - 20px, 1240px);
-        padding-top: 18px;
+        width: min(100% - 24px, 1280px);
+        padding-top: 22px;
+        padding-bottom: 56px;
     }
 
     .topbar {
         align-items: flex-start;
         flex-direction: column;
+        padding: 18px;
     }
 
     .topbar-actions {
@@ -872,6 +931,11 @@ body.sidebar-open .mobile-overlay {
 
     .chat-controls {
         grid-template-columns: 1fr;
+    }
+
+    .landing-hero,
+    .landing-sidebar {
+        padding: 30px;
     }
 }
 
@@ -891,7 +955,7 @@ body.sidebar-open .mobile-overlay {
         transform: translateX(calc(100% + 24px));
         transition: transform 0.22s ease;
         background: var(--surface-strong);
-        padding: 18px;
+        padding: 20px;
         border-radius: 24px;
         box-shadow: 0 30px 80px rgba(0, 0, 0, 0.2);
     }
@@ -913,5 +977,17 @@ body.sidebar-open .mobile-overlay {
 
     .site-footer {
         flex-direction: column;
+    }
+
+    .hero-card,
+    .detail-hero,
+    .detail-card,
+    .article-card,
+    .recent-card,
+    .project-card,
+    .intro-card,
+    .faq-item,
+    .chat-card {
+        padding: 24px;
     }
 }
