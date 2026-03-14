@@ -4,9 +4,9 @@
     --bg-accent: radial-gradient(circle at top left, rgba(42, 106, 166, 0.18), transparent 34%),
         radial-gradient(circle at bottom right, rgba(223, 158, 71, 0.16), transparent 28%),
         linear-gradient(180deg, #f9fbff 0%, #edf2f8 100%);
-    --surface: rgba(255, 255, 255, 0.82);
+    --surface: rgba(255, 255, 255, 0.94);
     --surface-strong: #ffffff;
-    --surface-soft: rgba(244, 247, 252, 0.78);
+    --surface-soft: rgba(244, 247, 252, 0.94);
     --text: #18212f;
     --muted: #667085;
     --line: rgba(15, 23, 42, 0.1);
@@ -37,9 +37,9 @@ body[data-theme="midnight"] {
     --bg-accent: radial-gradient(circle at top left, rgba(87, 162, 255, 0.18), transparent 32%),
         radial-gradient(circle at bottom right, rgba(245, 179, 93, 0.14), transparent 24%),
         linear-gradient(180deg, #0d1624 0%, #09111c 100%);
-    --surface: rgba(10, 18, 31, 0.8);
-    --surface-strong: rgba(14, 24, 40, 0.96);
-    --surface-soft: rgba(20, 31, 49, 0.88);
+    --surface: rgba(10, 18, 31, 0.94);
+    --surface-strong: rgba(14, 24, 40, 0.98);
+    --surface-soft: rgba(20, 31, 49, 0.94);
     --text: #edf2ff;
     --muted: #a7b4c7;
     --line: rgba(167, 180, 199, 0.16);
@@ -84,57 +84,20 @@ body {
     color: var(--text);
     font-family: var(--body-font);
     line-height: 1.65;
-    background-attachment: fixed;
     transition: background 0.25s ease, color 0.25s ease;
 }
 
 @keyframes gradient-flow {
     0% {
         background-position: 0% 50%;
-        filter: hue-rotate(0deg);
     }
 
     50% {
         background-position: 100% 50%;
-        filter: hue-rotate(16deg);
     }
 
     100% {
         background-position: 0% 50%;
-        filter: hue-rotate(0deg);
-    }
-}
-
-@keyframes glow-pulse {
-    0%,
-    100% {
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
-    }
-
-    50% {
-        box-shadow: 0 22px 54px var(--glow);
-    }
-}
-
-@keyframes text-pulse {
-    0%,
-    100% {
-        text-shadow: 0 0 14px rgba(37, 99, 235, 0.12);
-    }
-
-    50% {
-        text-shadow: 0 0 24px var(--glow), 0 0 38px var(--glow-strong);
-    }
-}
-
-@keyframes orb-float {
-    0%,
-    100% {
-        transform: translate3d(0, 0, 0) scale(1);
-    }
-
-    50% {
-        transform: translate3d(-10px, 12px, 0) scale(1.06);
     }
 }
 
@@ -157,8 +120,7 @@ select {
     background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
     background-size: 24px 24px;
-    opacity: 0.18;
-    mix-blend-mode: soft-light;
+    opacity: 0.08;
 }
 
 .shell {
@@ -174,7 +136,6 @@ select {
     border: 1px solid var(--line);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow);
-    backdrop-filter: blur(20px);
     position: relative;
 }
 
@@ -204,7 +165,6 @@ select {
     color: #fff;
     background: linear-gradient(135deg, var(--brand), var(--brand-alt), var(--accent));
     box-shadow: 0 18px 32px rgba(37, 99, 235, 0.22);
-    animation: glow-pulse 6s ease-in-out infinite;
 }
 
 .brand-label {
@@ -216,7 +176,7 @@ select {
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: gradient-flow 10s linear infinite, text-pulse 4s ease-in-out infinite;
+    animation: gradient-flow 16s linear infinite;
 }
 
 .brand-group p,
@@ -346,7 +306,7 @@ select {
     color: transparent;
     -webkit-text-fill-color: transparent;
     margin-bottom: 12px;
-    animation: gradient-flow 10s linear infinite, text-pulse 4.6s ease-in-out infinite;
+    animation: gradient-flow 18s linear infinite;
 }
 
 .blog-layout,
@@ -459,7 +419,7 @@ select {
     border-radius: 50%;
     background: radial-gradient(circle, var(--glow) 0%, transparent 72%);
     z-index: -1;
-    animation: orb-float 12s ease-in-out infinite;
+    opacity: 0.72;
 }
 
 .hero-card h1,
@@ -723,7 +683,7 @@ select {
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: gradient-flow 11s linear infinite, text-pulse 4.8s ease-in-out infinite;
+    animation: gradient-flow 20s linear infinite;
 }
 
 .hero-subtitle {
@@ -829,9 +789,11 @@ select {
 
 .reading-progress span {
     display: block;
-    width: 0;
+    width: 100%;
     height: 100%;
     background: linear-gradient(90deg, var(--brand), var(--accent));
+    transform: scaleX(0);
+    transform-origin: left center;
 }
 
 .detail-prose h2,
@@ -1159,5 +1121,25 @@ body.sidebar-open .mobile-overlay {
     .faq-item,
     .chat-card {
         padding: 24px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .brand-label,
+    .section-kicker,
+    .sidebar-kicker,
+    .gradient-title {
+        animation: none;
+        background-position: 50% 50%;
+    }
+
+    .hero-card::before,
+    .detail-hero::before,
+    .landing-hero::before {
+        display: none;
     }
 }

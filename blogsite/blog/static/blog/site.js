@@ -275,10 +275,22 @@
             const scrollTop = window.scrollY;
             const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
             const ratio = scrollHeight > 0 ? Math.min(scrollTop / scrollHeight, 1) : 0;
-            progressBar.style.width = `${ratio * 100}%`;
+            progressBar.style.transform = `scaleX(${ratio})`;
+        };
+        let progressTicking = false;
+        const requestProgressUpdate = () => {
+            if (progressTicking) {
+                return;
+            }
+            progressTicking = true;
+            window.requestAnimationFrame(() => {
+                updateProgress();
+                progressTicking = false;
+            });
         };
         updateProgress();
-        window.addEventListener("scroll", updateProgress, { passive: true });
+        window.addEventListener("scroll", requestProgressUpdate, { passive: true });
+        window.addEventListener("resize", requestProgressUpdate, { passive: true });
     }
 
     const chatForm = document.querySelector("[data-chat-form]");
