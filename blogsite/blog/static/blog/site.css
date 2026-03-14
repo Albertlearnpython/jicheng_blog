@@ -12,8 +12,13 @@
     --line: rgba(15, 23, 42, 0.1);
     --brand: #2563eb;
     --brand-strong: #1747b5;
+    --brand-soft: #2cc3ff;
+    --brand-alt: #8b5cf6;
     --accent: #c9852d;
+    --accent-soft: #ff8e5a;
     --success: #157347;
+    --glow: rgba(44, 195, 255, 0.28);
+    --glow-strong: rgba(139, 92, 246, 0.2);
     --shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
     --font-sans: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     --font-serif: "Georgia", "Times New Roman", "Songti SC", serif;
@@ -40,8 +45,13 @@ body[data-theme="midnight"] {
     --line: rgba(167, 180, 199, 0.16);
     --brand: #74a7ff;
     --brand-strong: #96bbff;
+    --brand-soft: #5ed7ff;
+    --brand-alt: #b79dff;
     --accent: #f2b766;
+    --accent-soft: #ff9a5c;
     --success: #82d7a5;
+    --glow: rgba(94, 215, 255, 0.24);
+    --glow-strong: rgba(183, 157, 255, 0.2);
     --shadow: 0 24px 72px rgba(0, 0, 0, 0.3);
 }
 
@@ -76,6 +86,56 @@ body {
     line-height: 1.65;
     background-attachment: fixed;
     transition: background 0.25s ease, color 0.25s ease;
+}
+
+@keyframes gradient-flow {
+    0% {
+        background-position: 0% 50%;
+        filter: hue-rotate(0deg);
+    }
+
+    50% {
+        background-position: 100% 50%;
+        filter: hue-rotate(16deg);
+    }
+
+    100% {
+        background-position: 0% 50%;
+        filter: hue-rotate(0deg);
+    }
+}
+
+@keyframes glow-pulse {
+    0%,
+    100% {
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    }
+
+    50% {
+        box-shadow: 0 22px 54px var(--glow);
+    }
+}
+
+@keyframes text-pulse {
+    0%,
+    100% {
+        text-shadow: 0 0 14px rgba(37, 99, 235, 0.12);
+    }
+
+    50% {
+        text-shadow: 0 0 24px var(--glow), 0 0 38px var(--glow-strong);
+    }
+}
+
+@keyframes orb-float {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate3d(-10px, 12px, 0) scale(1.06);
+    }
 }
 
 a {
@@ -142,13 +202,21 @@ select {
     font-size: 20px;
     font-weight: 800;
     color: #fff;
-    background: linear-gradient(135deg, var(--brand), var(--accent));
+    background: linear-gradient(135deg, var(--brand), var(--brand-alt), var(--accent));
+    box-shadow: 0 18px 32px rgba(37, 99, 235, 0.22);
+    animation: glow-pulse 6s ease-in-out infinite;
 }
 
 .brand-label {
     font-size: 16px;
     font-weight: 700;
     letter-spacing: 0.04em;
+    background-image: linear-gradient(120deg, var(--brand), var(--brand-soft), var(--accent), var(--brand-alt), var(--brand));
+    background-size: 240% 240%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-flow 10s linear infinite, text-pulse 4s ease-in-out infinite;
 }
 
 .brand-group p,
@@ -162,6 +230,11 @@ select {
 .sidebar-card p,
 .detail-prose p {
     color: var(--muted);
+}
+
+.brand-group p,
+.hero-text {
+    max-width: 780px;
 }
 
 .topbar-actions,
@@ -266,8 +339,14 @@ select {
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--brand);
+    background-image: linear-gradient(120deg, var(--brand), var(--brand-soft), var(--accent), var(--brand));
+    background-size: 220% 220%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
     margin-bottom: 12px;
+    animation: gradient-flow 10s linear infinite, text-pulse 4.6s ease-in-out infinite;
 }
 
 .blog-layout,
@@ -361,6 +440,28 @@ select {
     gap: 20px;
 }
 
+.hero-card,
+.detail-hero,
+.landing-hero {
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.hero-card::before,
+.detail-hero::before,
+.landing-hero::before {
+    content: "";
+    position: absolute;
+    right: -70px;
+    top: -70px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--glow) 0%, transparent 72%);
+    z-index: -1;
+    animation: orb-float 12s ease-in-out infinite;
+}
+
 .hero-card h1,
 .detail-hero h1,
 .landing-hero h1 {
@@ -392,6 +493,24 @@ select {
     gap: 18px;
 }
 
+.avatar-frame {
+    width: 104px;
+    height: 104px;
+    flex-shrink: 0;
+    padding: 4px;
+    border-radius: 28px;
+    background: linear-gradient(135deg, var(--brand), var(--brand-alt), var(--accent));
+    box-shadow: 0 20px 36px rgba(37, 99, 235, 0.18);
+}
+
+.avatar-photo {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: 24px;
+}
+
 .avatar-mark,
 .article-cover {
     border-radius: 22px;
@@ -406,6 +525,21 @@ select {
     width: 88px;
     height: 88px;
     font-size: 26px;
+}
+
+.profile-summary {
+    margin: 10px 0 0;
+    max-width: 360px;
+}
+
+.timeline-card,
+.contact-card {
+    padding: var(--card-padding);
+}
+
+.contact-list {
+    display: grid;
+    gap: 14px;
 }
 
 .article-cover {
@@ -458,6 +592,10 @@ select {
     font-size: 18px;
 }
 
+.metric strong {
+    word-break: break-word;
+}
+
 .hero-topline,
 .section-heading,
 .chat-header {
@@ -491,6 +629,10 @@ select {
     border-radius: 20px;
     border: 1px solid var(--line);
     background: var(--surface-soft);
+}
+
+.metric + .metric {
+    margin-top: 12px;
 }
 
 .stat-card span,
@@ -573,6 +715,34 @@ select {
 .empty-state h2 {
     margin: 0;
     font-size: 24px;
+}
+
+.gradient-title {
+    background-image: linear-gradient(120deg, var(--brand), var(--brand-soft), var(--accent-soft), var(--brand-alt), var(--brand));
+    background-size: 260% 260%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-flow 11s linear infinite, text-pulse 4.8s ease-in-out infinite;
+}
+
+.hero-subtitle {
+    font-size: 18px;
+    line-height: 1.9;
+}
+
+.hero-quote {
+    margin: 0;
+    max-width: 900px;
+    padding: 18px 22px;
+    border-radius: 24px;
+    border: 1px solid rgba(37, 99, 235, 0.14);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(139, 92, 246, 0.08), rgba(255, 142, 90, 0.1));
+    color: var(--text);
+    font-size: clamp(18px, 2.1vw, 22px);
+    font-weight: 700;
+    line-height: 1.9;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 .article-stack {

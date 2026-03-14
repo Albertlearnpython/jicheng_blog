@@ -15,11 +15,18 @@
     <div class="landing-shell shell">
         <aside class="landing-sidebar card" data-sidebar>
             <div class="avatar-block">
-                <div class="avatar-mark">AL</div>
+                <div class="avatar-frame">
+                    {% if profile.avatar_asset %}
+                        <img class="avatar-photo" src="{% static profile.avatar_asset %}" alt="{{ profile.name }} 的头像">
+                    {% else %}
+                        <div class="avatar-mark">{{ profile.avatar_label }}</div>
+                    {% endif %}
+                </div>
                 <div>
                     <div class="sidebar-kicker">Profile</div>
                     <h2>{{ profile.name }}</h2>
                     <p>{{ profile.handle }} · {{ profile.role }}</p>
+                    <p class="profile-summary">{{ profile.summary }}</p>
                 </div>
             </div>
 
@@ -34,7 +41,7 @@
                 {% endfor %}
             </div>
 
-            <section class="timeline-card">
+            <section class="timeline-card card">
                 <div class="sidebar-kicker">Timeline</div>
                 <ul class="timeline-list">
                     {% for item in timeline %}
@@ -44,6 +51,16 @@
                         </li>
                     {% endfor %}
                 </ul>
+            </section>
+
+            <section class="contact-card card">
+                <div class="sidebar-kicker">Contact</div>
+                <div class="contact-list">
+                    <div class="metric">
+                        <span>{{ profile.contact_label }}</span>
+                        <strong>{{ profile.contact_value }}</strong>
+                    </div>
+                </div>
             </section>
         </aside>
 
@@ -57,9 +74,9 @@
                         <button class="icon-button mobile-only" type="button" data-sidebar-toggle aria-label="打开侧栏">☰</button>
                     </div>
                 </div>
-                <h1>{{ profile.hero_title }}</h1>
-                <p class="hero-text">{{ profile.hero_subtitle }}</p>
-                <p class="hero-text">{{ profile.motto }}</p>
+                <h1 class="gradient-title">{{ profile.hero_title }}</h1>
+                <p class="hero-text hero-subtitle">{{ profile.hero_subtitle }}</p>
+                <p class="hero-quote">{{ profile.motto }}</p>
                 <div class="hero-actions">
                     <a class="primary-button" href="{% url 'blog-home' %}">进入博客</a>
                     <a class="ghost-button" href="{% url 'chat-page' %}">打开 AI Chat</a>
@@ -78,7 +95,7 @@
 
             <nav class="tab-strip card" role="tablist" aria-label="首页标签">
                 <button class="tab-button is-active" type="button" data-tab-button data-target="projects">Projects</button>
-                <button class="tab-button" type="button" data-tab-button data-target="intro">Intro</button>
+                <button class="tab-button" type="button" data-tab-button data-target="intro">About</button>
                 <button class="tab-button" type="button" data-tab-button data-target="faq">FAQ</button>
             </nav>
 
@@ -126,7 +143,7 @@
                 <div class="section-heading">
                     <div>
                         <div class="section-kicker">Intro</div>
-                        <h2>这个站点现在在做什么</h2>
+                        <h2>关于我与这个站点</h2>
                     </div>
                 </div>
                 <div class="intro-grid">
@@ -163,6 +180,7 @@
             <footer class="site-footer card">
                 <span>Inspired by <a href="https://xuxiny.top/" target="_blank" rel="noreferrer">xuxiny.top</a></span>
                 <span>Blog reference <a href="https://blog.xuxiny.top/" target="_blank" rel="noreferrer">blog.xuxiny.top</a></span>
+                <span>{{ profile.contact_label }} {{ profile.contact_value }}</span>
                 <span data-runtime-label>计算中...</span>
             </footer>
         </main>

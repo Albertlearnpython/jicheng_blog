@@ -16,7 +16,7 @@
     <div class="blog-shell shell">
         <header class="topbar card">
             <div class="brand-group">
-                <a class="brand-mark" href="{% url 'site-home' %}">A</a>
+                <a class="brand-mark" href="{% url 'site-home' %}">{{ site.brand_mark }}</a>
                 <div>
                     <div class="brand-label">{{ site.blog_name }}</div>
                     <p>{{ site.description }}</p>
@@ -37,11 +37,27 @@
                 <section class="sidebar-card card">
                     <div class="sidebar-kicker">About</div>
                     <h2>{{ site.owner }}</h2>
-                    <p>{{ site.role }}</p>
+                    <p>{{ site.owner_en }} · {{ site.role }}</p>
                     <div class="chip-row">
                         <span class="chip">文章 {{ site.post_count }}</span>
                         <span class="chip">作者 {{ site.author_count }}</span>
                         <span class="chip">字数 {{ site.total_words }}</span>
+                    </div>
+                </section>
+
+                <section class="sidebar-card card">
+                    <div class="sidebar-kicker">Profile</div>
+                    <div class="metric">
+                        <span>城市</span>
+                        <strong>{{ site.location }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>学校</span>
+                        <strong>{{ site.organization }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>{{ site.contact_label }}</span>
+                        <strong>{{ site.contact_value }}</strong>
                     </div>
                 </section>
 
@@ -105,7 +121,7 @@
             <main class="content-column">
                 {% block content %}{% endblock %}
                 <footer class="site-footer card">
-                    <span>Albert Notes / Django Blog</span>
+                    <span>{{ site.blog_name }} / Django Blog</span>
                     <span>Homepage inspired by <a href="https://xuxiny.top/" target="_blank" rel="noreferrer">xuxiny.top</a></span>
                     <span>Blog layout inspired by <a href="https://blog.xuxiny.top/" target="_blank" rel="noreferrer">blog.xuxiny.top</a></span>
                 </footer>

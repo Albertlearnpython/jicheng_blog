@@ -24,7 +24,7 @@ class BlogViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("blog-home"))
-        self.assertContains(response, "Hello, I&#x27;m Albert.")
+        self.assertContains(response, "孙伯符 / Noah Brooks")
 
     def test_home_page_shows_post_and_detail_link(self):
         response = self.client.get(reverse("blog-home"))

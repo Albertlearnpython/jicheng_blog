@@ -5,10 +5,10 @@
 {% block content %}
     <section class="hero-card card">
         <div class="section-kicker">Blog</div>
-        <h1>写代码，也写思考。</h1>
+        <h1 class="gradient-title">在代码、AI 与阅读之间，慢慢把思考写下来。</h1>
         <p class="hero-text">
-            这里承载文章列表、搜索入口和主题切换。布局参考你给的博客站风格，
-            但内容结构、文案和前端实现都改成了适配当前 Django 项目的版本。
+            这里是 {{ site.blog_name }} 的主内容区，围绕 Python、AI、阅读和长期积累持续更新。
+            文章列表、搜索、主题切换和交互音效都已经接入，后续会继续扩充真实内容。
         </p>
         <div class="hero-actions">
             <a class="primary-button" href="{% url 'chat-page' %}">打开 AI 实验室</a>

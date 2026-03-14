@@ -22,71 +22,73 @@ VALID_VERBOSITY = {"low", "medium", "high"}
 WORD_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]")
 
 PROFILE = {
-    "name": "Albert",
-    "handle": "@Albertlearnpython",
-    "role": "Python / AI / Web",
-    "location": "Remote Builder",
-    "organization": "Personal Lab",
-    "summary": "把学习、搭建和写作整合成一个持续更新的个人数字花园。",
-    "hero_title": "Hello, I'm Albert.",
-    "hero_subtitle": "做博客，也做工具，把零散的学习过程整理成可回看的长期作品。",
-    "motto": "把代码、思考和生活记录放在同一个可持续维护的网站里。",
+    "name": "孙伯符",
+    "handle": "Noah Brooks",
+    "role": "Python / AI / 阅读",
+    "location": "深圳",
+    "organization": "华南农业大学 · 本科",
+    "summary": "一个喜欢读书的人。",
+    "hero_title": "孙伯符 / Noah Brooks",
+    "hero_subtitle": "在深圳记录 Python、AI、阅读与持续搭建，把零散的学习过程整理成长期作品。",
+    "motto": "静水流深，金石为开；守拙见慧，癸水逢源。",
+    "avatar_asset": "blog/noah-avatar.svg",
+    "avatar_label": "孙",
+    "contact_label": "微信",
+    "contact_value": "djm13126042156",
     "tags": [
-        "Django",
         "Python",
-        "AI Workflow",
-        "Frontend",
-        "Writing",
-        "Personal Site",
+        "AI",
+        "阅读",
+        "深圳",
+        "华南农业大学",
     ],
 }
 
 TIMELINE = [
-    {"date": "Future", "title": "继续扩充博客与 AI 工具模块"},
-    {"date": "2026-03-14", "title": "重做首页与博客视觉系统"},
-    {"date": "2026-03-12", "title": "完成 Django 博客站点初版"},
-    {"date": "Today", "title": "保持输出，持续迭代"},
+    {"date": "2026-03-14", "title": "集成博客网站创建"},
+    {"date": "进行中", "title": "持续记录 Python、AI 与阅读笔记"},
+    {"date": "下一步", "title": "补充更多个人文章、项目与长期思考"},
 ]
 
 INTRO_COLUMNS = [
     {
-        "title": "Focus",
+        "title": "关于我",
         "items": [
-            "把博客首页和文章页做成统一的个人品牌站。",
-            "记录 AI、编程、效率工具和独立折腾过程。",
-            "让写作、展示和项目入口都落在同一个域名体系下。",
+            "中文名孙伯符，英文名 Noah Brooks。",
+            "现在在深圳，学校是华南农业大学，本科阶段。",
+            "平时喜欢读书，也喜欢把思考慢慢写下来。",
         ],
     },
     {
-        "title": "Current Stack",
+        "title": "关注主题",
         "items": [
-            "Django 5 + SQLite",
-            "自定义 CSS 设计 token 与主题切换",
-            "OpenAI Responses API 聊天实验页",
+            "Python 学习与项目实践。",
+            "AI 工具、模型体验和应用记录。",
+            "阅读、笔记整理与长期积累。",
         ],
     },
     {
-        "title": "Design Goals",
+        "title": "站点方向",
         "items": [
-            "首页像个人名片与项目看板。",
-            "博客页保留内容优先的阅读体验。",
-            "移动端也能完整访问侧栏导航和主题设置。",
+            "把博客做成个人主页、文章列表和实验空间的统一入口。",
+            "保留内容优先的阅读体验，也保留好看的前端细节。",
+            "继续补充真实项目、个人介绍和更多文章归档。",
         ],
     },
 ]
 
 FAQS = [
     {
-        "question": "这个站点现在有哪些主要板块？",
-        "answer": "目前包含个人首页、博客列表、文章详情页和 AI 聊天实验页。首页负责展示身份、项目入口与站点概览，博客页负责承载文章阅读。",
+        "question": "这个博客会主要记录什么内容？",
+        "answer": "会围绕 Python、AI、阅读和个人成长持续更新，既写技术，也写过程中的思考和沉淀。",
     },
     {
-        "question": "博客页为什么保留了主题切换和布局控制？",
-        "answer": "这样你后续不用改代码结构，只需要微调设计 token，就能快速切换明暗、字型和内容密度。",
+        "question": "为什么首页和博客页风格做得比较强？",
+        "answer": "因为这个站点既是博客，也是个人展示页。保留主题切换、音效和动态文字，是为了让它更像一个有个人气质的长期作品。",
     },
     {
-        "question": "后面还适合扩展什么？",
-        "answer": "可以继续加入分类、标签、归档、搜索增强、评论、图床和自动化部署等模块。",
+        "question": "怎么联系你？",
+        "answer": "目前可以通过微信联系我，微信号是 djm13126042156。后面也会继续补充更多社交链接和项目入口。",
     },
 ]
 
@@ -293,11 +295,17 @@ def _site_context(posts):
     latest_post = cards[0] if cards else None
     launch_date = _launch_date(posts)
     return {
-        "name": "Albert 的博客站",
-        "blog_name": "Albert Notes",
-        "description": "一个受个人主页与聚合博客布局启发、用 Django 搭建的内容站点。",
+        "name": "孙伯符 / Noah Brooks",
+        "blog_name": "孙伯符的博客",
+        "description": "一个喜欢读书的人，在深圳记录 Python、AI 与长期思考的个人博客。",
         "owner": PROFILE["name"],
+        "owner_en": PROFILE["handle"],
         "role": PROFILE["role"],
+        "location": PROFILE["location"],
+        "organization": PROFILE["organization"],
+        "contact_label": PROFILE["contact_label"],
+        "contact_value": PROFILE["contact_value"],
+        "brand_mark": PROFILE["avatar_label"],
         "launch_date": launch_date,
         "launch_iso": launch_date.isoformat(),
         "post_count": len(cards),
@@ -311,25 +319,25 @@ def _landing_projects():
     return [
         {
             "title": "博客",
-            "description": "浏览文章列表、详情页与搜索结果，是站点的主内容区。",
+            "description": "浏览文章列表、详情页与搜索结果，是站点的核心内容区。",
             "href": reverse("blog-home"),
             "eyebrow": "Blog",
         },
         {
             "title": "AI Chat",
-            "description": "接入 OpenAI Responses API 的实验性问答页。",
+            "description": "接入 OpenAI Responses API 的实验性问答页，也是后续 AI 功能扩展入口。",
             "href": reverse("chat-page"),
             "eyebrow": "Lab",
         },
         {
             "title": "GitHub Repo",
-            "description": "查看源码、提交记录和后续迭代进展。",
+            "description": "查看源码、提交记录和这个博客的持续迭代进展。",
             "href": "https://github.com/Albertlearnpython/jicheng_blog",
             "eyebrow": "Source",
         },
         {
             "title": "Admin",
-            "description": "通过 Django 后台管理文章、用户和内容数据。",
+            "description": "通过 Django 后台管理文章、内容和后续扩展的数据结构。",
             "href": reverse("admin:index"),
             "eyebrow": "Manage",
         },
@@ -386,8 +394,8 @@ def home(request):
         "filtered_count": filtered_qs.count(),
         "feature_blocks": [
             {"label": "文章列表", "value": site["post_count"], "hint": "持续更新中"},
-            {"label": "搜索状态", "value": "已启用", "hint": "支持标题 / 正文"},
-            {"label": "主题样式", "value": "可切换", "hint": "明暗 / 字体 / 密度"},
+            {"label": "关注方向", "value": "Python / AI", "hint": "也会写阅读与思考"},
+            {"label": "主题样式", "value": "可切换", "hint": "明暗 / 字体 / 密度 / 音效"},
         ],
     }
     return render(request, "blog/home.html", context)
