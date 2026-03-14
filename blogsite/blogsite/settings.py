@@ -21,7 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-j1)41m67-2qn!u+%1t*urqdf*&kmwtmgd-bgmjdt-qm-(3$$4%'
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    'django-insecure-j1)41m67-2qn!u+%1t*urqdf*&kmwtmgd-bgmjdt-qm-(3$$4%',
+)
 
 def env_bool(name, default=False):
     value = os.environ.get(name)
@@ -41,6 +44,7 @@ def env_list(name, default=None):
 DEBUG = env_bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["*"] if DEBUG else [])
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", [])
 
 
 # Application definition
@@ -57,6 +61,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -91,7 +96,7 @@ WSGI_APPLICATION = 'blogsite.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.environ.get("DJANGO_DB_PATH", str(BASE_DIR / 'db.sqlite3')),
     }
 }
 
@@ -131,16 +136,79 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 OPENAI_API_URL = os.environ.get("OPENAI_API_URL", "http://125.94.105.18:52817/v1/responses")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4")
-OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "medium")
+OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "xhigh")
 OPENAI_TEXT_VERBOSITY = os.environ.get("OPENAI_TEXT_VERBOSITY", "medium")
 OPENAI_REQUEST_TIMEOUT = int(os.environ.get("OPENAI_REQUEST_TIMEOUT", "60"))
 CHAT_SYSTEM_PROMPT = os.environ.get(
     "CHAT_SYSTEM_PROMPT",
     "You are a concise and helpful assistant.",
+)
+
+FEISHU_BASE_URL = os.environ.get("FEISHU_BASE_URL", "https://open.feishu.cn")
+FEISHU_APP_ID = os.environ.get("FEISHU_APP_ID", "")
+FEISHU_APP_SECRET = os.environ.get("FEISHU_APP_SECRET", "")
+FEISHU_VERIFICATION_TOKEN = os.environ.get("FEISHU_VERIFICATION_TOKEN", "")
+FEISHU_BOT_NAME = os.environ.get("FEISHU_BOT_NAME", "linuxclaw")
+FEISHU_EVENT_REPLY_TIMEOUT = int(os.environ.get("FEISHU_EVENT_REPLY_TIMEOUT", "15"))
+FEISHU_REQUIRE_GROUP_MENTION = env_bool("FEISHU_REQUIRE_GROUP_MENTION", True)
+FEISHU_CALENDAR_ID = os.environ.get("FEISHU_CALENDAR_ID", "")
+FEISHU_CALENDAR_TIMEZONE = os.environ.get("FEISHU_CALENDAR_TIMEZONE", "Asia/Shanghai")
+FEISHU_CALENDAR_AUTO_INVITE_SENDER = env_bool("FEISHU_CALENDAR_AUTO_INVITE_SENDER", True)
+FEISHU_CALENDAR_LIST_PAGE_SIZE = int(os.environ.get("FEISHU_CALENDAR_LIST_PAGE_SIZE", "10"))
+
+REMOTE_SSH_HOST = os.environ.get("REMOTE_SSH_HOST", "")
+REMOTE_SSH_PORT = int(os.environ.get("REMOTE_SSH_PORT", "22"))
+REMOTE_SSH_USER = os.environ.get("REMOTE_SSH_USER", "")
+REMOTE_SSH_PASSWORD = os.environ.get("REMOTE_SSH_PASSWORD", "")
+REMOTE_SSH_IDENTITY_FILE = os.environ.get("REMOTE_SSH_IDENTITY_FILE", "")
+REMOTE_PROJECT_ROOT = os.environ.get("REMOTE_PROJECT_ROOT", "")
+REMOTE_READ_FILE_LIMIT = int(os.environ.get("REMOTE_READ_FILE_LIMIT", "12000"))
+REMOTE_LIST_FILE_LIMIT = int(os.environ.get("REMOTE_LIST_FILE_LIMIT", "200"))
+REMOTE_LIST_FILE_DEPTH = int(os.environ.get("REMOTE_LIST_FILE_DEPTH", "6"))
+REMOTE_REQUIRE_CLEAN_WORKTREE = env_bool("REMOTE_REQUIRE_CLEAN_WORKTREE", True)
+REMOTE_COMMAND_TIMEOUT = int(os.environ.get("REMOTE_COMMAND_TIMEOUT", "60"))
+REMOTE_ALLOWED_TEST_PREFIXES = env_list(
+    "REMOTE_ALLOWED_TEST_PREFIXES",
+    [
+        "python manage.py test",
+        "pytest",
+        "uv run pytest",
+        "npm test",
+        "pnpm test",
+        "yarn test",
+        "go test",
+        "cargo test",
+    ],
+)
+REMOTE_ALLOWED_INSPECTION_PREFIXES = env_list(
+    "REMOTE_ALLOWED_INSPECTION_PREFIXES",
+    [
+        "df -h",
+        "lsblk",
+        "du -sh",
+        "free -h",
+        "uptime",
+        "nproc",
+        "docker ps",
+        "docker images",
+        "docker stats --no-stream",
+        "ss -lntp",
+        "ps aux --sort=-%mem",
+        "ps aux --sort=-%cpu",
+    ],
+)
+REMOTE_AGENT_SYSTEM_PROMPT = os.environ.get(
+    "REMOTE_AGENT_SYSTEM_PROMPT",
+    (
+        "You are a careful remote coding planner. "
+        "Return strict JSON only, minimize edits, and prefer safe, reversible changes."
+    ),
 )
 
 # Default primary key field type

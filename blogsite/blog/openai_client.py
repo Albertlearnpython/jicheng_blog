@@ -13,13 +13,15 @@ class OpenAIRequestError(Exception):
     pass
 
 
-def build_payload(message, reasoning_effort=None, verbosity=None):
+def build_payload(message, reasoning_effort=None, verbosity=None, instructions=None, extra_payload=None):
     payload = {
         "model": settings.OPENAI_MODEL,
         "input": message,
-        "instructions": settings.CHAT_SYSTEM_PROMPT,
         "store": False,
     }
+    prompt_instructions = settings.CHAT_SYSTEM_PROMPT if instructions is None else instructions
+    if prompt_instructions:
+        payload["instructions"] = prompt_instructions
 
     effort = reasoning_effort or settings.OPENAI_REASONING_EFFORT
     if effort and effort != "none":
@@ -28,6 +30,9 @@ def build_payload(message, reasoning_effort=None, verbosity=None):
     text_verbosity = verbosity or settings.OPENAI_TEXT_VERBOSITY
     if text_verbosity:
         payload["text"] = {"format": {"type": "text"}, "verbosity": text_verbosity}
+
+    if extra_payload:
+        payload.update(extra_payload)
 
     return payload
 
@@ -45,11 +50,23 @@ def extract_text(response_data):
     raise OpenAIRequestError("API returned no assistant text.")
 
 
-def create_chat_response(message, reasoning_effort=None, verbosity=None):
+def create_response(
+    message,
+    reasoning_effort=None,
+    verbosity=None,
+    instructions=None,
+    extra_payload=None,
+):
     if not settings.OPENAI_API_KEY:
         raise OpenAIConfigError("OPENAI_API_KEY is not configured.")
 
-    payload = build_payload(message, reasoning_effort=reasoning_effort, verbosity=verbosity)
+    payload = build_payload(
+        message,
+        reasoning_effort=reasoning_effort,
+        verbosity=verbosity,
+        instructions=instructions,
+        extra_payload=extra_payload,
+    )
     body = json.dumps(payload).encode("utf-8")
     headers = {
         "Content-Type": "application/json",
@@ -74,8 +91,34 @@ def create_chat_response(message, reasoning_effort=None, verbosity=None):
             ) from exc
         raise OpenAIRequestError(f"Network error while contacting OpenAI: {exc.reason}") from exc
 
+    return response_data
+
+
+def create_text_response(
+    message,
+    reasoning_effort=None,
+    verbosity=None,
+    instructions=None,
+    extra_payload=None,
+):
+    response_data = create_response(
+        message,
+        reasoning_effort=reasoning_effort,
+        verbosity=verbosity,
+        instructions=instructions,
+        extra_payload=extra_payload,
+    )
+
     return {
         "response_id": response_data.get("id"),
         "model": response_data.get("model", settings.OPENAI_MODEL),
         "text": extract_text(response_data),
     }
+
+
+def create_chat_response(message, reasoning_effort=None, verbosity=None):
+    return create_text_response(
+        message,
+        reasoning_effort=reasoning_effort,
+        verbosity=verbosity,
+    )

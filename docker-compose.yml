@@ -1,0 +1,13 @@
+services:
+  web:
+    build:
+      context: .
+    container_name: linuxclaw-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "80:8000"
+    volumes:
+      - ./:/app
+      - ./data:/app/data
