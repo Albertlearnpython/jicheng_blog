@@ -2,7 +2,10 @@
 
 ## 2026-03-14
 
-### Pending
+### Avatar update
+- 将首页头像从临时 SVG 占位图替换为用户提供的原始微信头像 JPG。
+
+### `ccf269e` Improve scroll performance and reduce animation overhead
 - 优化滚动性能，降低固定背景、毛玻璃和持续发光动画带来的卡顿。
 - 将阅读进度条改为 `requestAnimationFrame` 节流更新，减少滚动时的重绘压力。
 - 保留动态变色文字效果，但改为更轻量的渐变流动方案。

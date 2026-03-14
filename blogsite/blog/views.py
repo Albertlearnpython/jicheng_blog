@@ -31,7 +31,7 @@ PROFILE = {
     "hero_title": "孙伯符 / Noah Brooks",
     "hero_subtitle": "在深圳记录 Python、AI、阅读与持续搭建，把零散的学习过程整理成长期作品。",
     "motto": "静水流深，金石为开；守拙见慧，癸水逢源。",
-    "avatar_asset": "blog/noah-avatar.svg",
+    "avatar_asset": "blog/avatar-wechat.jpg",
     "avatar_label": "孙",
     "contact_label": "微信",
     "contact_value": "djm13126042156",
