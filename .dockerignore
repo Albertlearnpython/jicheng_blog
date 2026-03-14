@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+blogsite/blog/__pycache__/
+blogsite/blog/migrations/__pycache__/
+blogsite/blogsite/__pycache__/
+blogsite/db.sqlite3
+data/
