@@ -1,0 +1,172 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ site.name }}</title>
+    <meta name="description" content="{{ site.description }}">
+    <link rel="stylesheet" href="{% static 'blog/site.css' %}">
+</head>
+<body class="landing-page" data-page="landing" data-site-start="{{ site.launch_iso }}">
+    <div class="page-noise"></div>
+    <div class="mobile-overlay" data-sidebar-overlay></div>
+
+    <div class="landing-shell shell">
+        <aside class="landing-sidebar card" data-sidebar>
+            <div class="avatar-block">
+                <div class="avatar-mark">AL</div>
+                <div>
+                    <div class="sidebar-kicker">Profile</div>
+                    <h2>{{ profile.name }}</h2>
+                    <p>{{ profile.handle }} · {{ profile.role }}</p>
+                </div>
+            </div>
+
+            <div class="sidebar-meta">
+                <div class="meta-pill">{{ profile.location }}</div>
+                <div class="meta-pill">{{ profile.organization }}</div>
+            </div>
+
+            <div class="chip-row">
+                {% for tag in profile.tags %}
+                    <span class="chip">{{ tag }}</span>
+                {% endfor %}
+            </div>
+
+            <section class="timeline-card">
+                <div class="sidebar-kicker">Timeline</div>
+                <ul class="timeline-list">
+                    {% for item in timeline %}
+                        <li>
+                            <span>{{ item.date }}</span>
+                            <strong>{{ item.title }}</strong>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        </aside>
+
+        <main class="landing-content">
+            <header class="landing-hero card">
+                <div class="hero-topline">
+                    <span class="eyebrow-pill">Personal Homepage</span>
+                    <div class="topbar-actions">
+                        <button class="icon-button" type="button" data-theme-toggle aria-label="切换主题">◐</button>
+                        <button class="icon-button mobile-only" type="button" data-sidebar-toggle aria-label="打开侧栏">☰</button>
+                    </div>
+                </div>
+                <h1>{{ profile.hero_title }}</h1>
+                <p class="hero-text">{{ profile.hero_subtitle }}</p>
+                <p class="hero-text">{{ profile.motto }}</p>
+                <div class="hero-actions">
+                    <a class="primary-button" href="{% url 'blog-home' %}">进入博客</a>
+                    <a class="ghost-button" href="{% url 'chat-page' %}">打开 AI Chat</a>
+                    <a class="ghost-button" href="https://github.com/Albertlearnpython/jicheng_blog" target="_blank" rel="noreferrer">查看源码</a>
+                </div>
+                <div class="stat-grid">
+                    {% for item in landing_stats %}
+                        <div class="stat-card">
+                            <span>{{ item.label }}</span>
+                            <strong>{{ item.value }}</strong>
+                            <small>实时来自当前站点数据</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            </header>
+
+            <nav class="tab-strip card" role="tablist" aria-label="首页标签">
+                <button class="tab-button is-active" type="button" data-tab-button data-target="projects">Projects</button>
+                <button class="tab-button" type="button" data-tab-button data-target="intro">Intro</button>
+                <button class="tab-button" type="button" data-tab-button data-target="faq">FAQ</button>
+            </nav>
+
+            <section class="tab-panel is-active" data-tab-panel="projects">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker">Projects</div>
+                        <h2>站点入口与核心模块</h2>
+                    </div>
+                </div>
+                <div class="project-grid">
+                    {% for project in projects %}
+                        <a class="project-card card" href="{{ project.href }}"{% if project.href|slice:":4" == "http" %} target="_blank" rel="noreferrer"{% endif %}>
+                            <span class="eyebrow-pill">{{ project.eyebrow }}</span>
+                            <h3>{{ project.title }}</h3>
+                            <p>{{ project.description }}</p>
+                        </a>
+                    {% endfor %}
+                </div>
+
+                {% if recent_posts %}
+                    <div class="section-heading section-heading-spaced">
+                        <div>
+                            <div class="section-kicker">Recent Posts</div>
+                            <h2>最近更新</h2>
+                        </div>
+                    </div>
+                    <div class="recent-grid">
+                        {% for item in recent_posts %}
+                            <article class="recent-card card">
+                                <span class="eyebrow-pill">{{ item.kind }}</span>
+                                <h3><a href="{% url 'post-detail' item.pk %}">{{ item.title }}</a></h3>
+                                <p>{{ item.excerpt }}</p>
+                                <div class="meta-row">
+                                    <span>{{ item.date_posted|date:"Y-m-d" }}</span>
+                                    <span>{{ item.reading_minutes }} 分钟</span>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="tab-panel" data-tab-panel="intro">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker">Intro</div>
+                        <h2>这个站点现在在做什么</h2>
+                    </div>
+                </div>
+                <div class="intro-grid">
+                    {% for column in intro_columns %}
+                        <article class="intro-card card">
+                            <h3>{{ column.title }}</h3>
+                            <ul>
+                                {% for item in column.items %}
+                                    <li>{{ item }}</li>
+                                {% endfor %}
+                            </ul>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="tab-panel" data-tab-panel="faq">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker">FAQ</div>
+                        <h2>关于这个博客站点</h2>
+                    </div>
+                </div>
+                <div class="faq-list">
+                    {% for item in faqs %}
+                        <details class="faq-item card">
+                            <summary>{{ item.question }}</summary>
+                            <p>{{ item.answer }}</p>
+                        </details>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <footer class="site-footer card">
+                <span>Inspired by <a href="https://xuxiny.top/" target="_blank" rel="noreferrer">xuxiny.top</a></span>
+                <span>Blog reference <a href="https://blog.xuxiny.top/" target="_blank" rel="noreferrer">blog.xuxiny.top</a></span>
+                <span data-runtime-label>计算中...</span>
+            </footer>
+        </main>
+    </div>
+
+    <script src="{% static 'blog/site.js' %}"></script>
+</body>
+</html>

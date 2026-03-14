@@ -1,35 +1,82 @@
 {% extends "blog/base.html" %}
 
-{% block title %}博客首页{% endblock %}
-
-{% block page_title %}最新文章{% endblock %}
-{% block page_intro %}这里展示最近发布的文章，也可以直接打开手机问答页面体验聊天接口。{% endblock %}
-
-{% block hero_actions %}
-    <div class="hero-actions">
-        <a class="button" href="{% url 'chat-page' %}">打开手机问答</a>
-    </div>
-{% endblock %}
+{% block title %}博客 | {{ site.blog_name }}{% endblock %}
 
 {% block content %}
-    {% for post in posts %}
-        <article class="post-card">
-            <div class="meta">
-                <span>作者：{{ post.author.username }}</span>
-                <span>发布时间：{{ post.date_posted|date:"Y-m-d H:i" }}</span>
-            </div>
-            <h2>
-                <a href="{% url 'post-detail' post.pk %}">{{ post.title }}</a>
-            </h2>
-            <div class="post-body">
-                {{ post.content|truncatechars:180|linebreaks }}
-            </div>
-            <a class="button" href="{% url 'post-detail' post.pk %}">阅读全文</a>
-        </article>
-    {% empty %}
-        <section class="empty-state">
-            <h2>还没有文章</h2>
-            <p>你可以先在后台创建文章，创建后这里会自动显示。</p>
+    <section class="hero-card card">
+        <div class="section-kicker">Blog</div>
+        <h1>写代码，也写思考。</h1>
+        <p class="hero-text">
+            这里承载文章列表、搜索入口和主题切换。布局参考你给的博客站风格，
+            但内容结构、文案和前端实现都改成了适配当前 Django 项目的版本。
+        </p>
+        <div class="hero-actions">
+            <a class="primary-button" href="{% url 'chat-page' %}">打开 AI 实验室</a>
+            <a class="ghost-button" href="{% url 'site-home' %}">返回首页</a>
+        </div>
+        <div class="stat-grid">
+            {% for block in feature_blocks %}
+                <div class="stat-card">
+                    <span>{{ block.label }}</span>
+                    <strong>{{ block.value }}</strong>
+                    <small>{{ block.hint }}</small>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if query %}
+        <section class="info-strip card">
+            搜索 “{{ query }}” 共命中 {{ filtered_count }} 篇文章。
         </section>
-    {% endfor %}
+    {% endif %}
+
+    <section class="article-stack">
+        {% for item in posts %}
+            <article class="article-card card">
+                <div class="article-head">
+                    <div class="article-cover">{{ item.cover_label }}</div>
+                    <div class="article-meta">
+                        <div class="eyebrow-row">
+                            <span class="eyebrow-pill">{{ item.kind }}</span>
+                            <span>{{ item.date_posted|date:"Y-m-d" }}</span>
+                        </div>
+                        <h2><a href="{% url 'post-detail' item.pk %}">{{ item.title }}</a></h2>
+                        <div class="meta-row">
+                            <span>作者 {{ item.author }}</span>
+                            <span>{{ item.word_count }} 字</span>
+                            <span>{{ item.reading_minutes }} 分钟阅读</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="article-excerpt">{{ item.excerpt }}</p>
+                <div class="article-actions">
+                    <a class="primary-button" href="{% url 'post-detail' item.pk %}">阅读全文</a>
+                </div>
+            </article>
+        {% empty %}
+            <section class="empty-state card">
+                <h2>还没有文章</h2>
+                <p>先去 Django 后台新增内容，这里会自动展示最新文章。</p>
+            </section>
+        {% endfor %}
+    </section>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="pagination card" aria-label="分页导航">
+            {% if page_obj.has_previous %}
+                <a class="page-chip" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">上一页</a>
+            {% endif %}
+            {% for number in page_obj.paginator.page_range %}
+                {% if number == page_obj.number %}
+                    <span class="page-chip is-current">{{ number }}</span>
+                {% else %}
+                    <a class="page-chip" href="?page={{ number }}{% if query %}&q={{ query }}{% endif %}">{{ number }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <a class="page-chip" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">下一页</a>
+            {% endif %}
+        </nav>
+    {% endif %}
 {% endblock %}

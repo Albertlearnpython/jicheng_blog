@@ -1,26 +1,50 @@
 {% extends "blog/base.html" %}
 
-{% block title %}{{ post.title }}{% endblock %}
-
-{% block page_title %}文章详情{% endblock %}
-{% block page_intro %}你正在阅读完整文章内容。{% endblock %}
-
-{% block hero_actions %}
-    <div class="hero-actions">
-        <a class="button" href="{% url 'chat-page' %}">打开手机问答</a>
-    </div>
-{% endblock %}
+{% block title %}{{ post.title }} | {{ site.blog_name }}{% endblock %}
 
 {% block content %}
-    <article class="detail-card">
-        <div class="meta">
-            <span>作者：{{ post.author.username }}</span>
-            <span>发布时间：{{ post.date_posted|date:"Y-m-d H:i" }}</span>
+    <div class="reading-progress"><span data-reading-progress></span></div>
+
+    <article class="detail-hero card">
+        <div class="section-kicker">{{ post_card.kind }}</div>
+        <h1>{{ post.title }}</h1>
+        <p class="hero-text">
+            发布于 {{ post.date_posted|date:"Y-m-d H:i" }} · {{ post_card.word_count }} 字 ·
+            预计阅读 {{ post_card.reading_minutes }} 分钟
+        </p>
+        <div class="hero-actions">
+            <a class="ghost-button" href="{% url 'blog-home' %}">返回博客首页</a>
+            <a class="primary-button" href="{% url 'chat-page' %}">去 AI 实验室</a>
         </div>
-        <h2>{{ post.title }}</h2>
-        <div class="detail-body">
-            {{ post.content|linebreaks }}
-        </div>
-        <a class="back-link" href="{% url 'blog-home' %}">返回文章列表</a>
     </article>
+
+    <article class="detail-card card">
+        <div class="detail-prose">
+            {{ post_card.rendered_content }}
+        </div>
+    </article>
+
+    {% if related_posts %}
+        <section class="related-section">
+            <div class="section-heading">
+                <div>
+                    <div class="section-kicker">Related</div>
+                    <h2>继续阅读</h2>
+                </div>
+            </div>
+            <div class="related-grid">
+                {% for item in related_posts %}
+                    <article class="related-card card">
+                        <span class="eyebrow-pill">{{ item.kind }}</span>
+                        <h3><a href="{% url 'post-detail' item.pk %}">{{ item.title }}</a></h3>
+                        <p>{{ item.excerpt }}</p>
+                        <div class="meta-row">
+                            <span>{{ item.date_posted|date:"Y-m-d" }}</span>
+                            <span>{{ item.reading_minutes }} 分钟</span>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 {% endblock %}
