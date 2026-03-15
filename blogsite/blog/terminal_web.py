@@ -20,3 +20,7 @@ def parse_terminal_access_token(token, max_age=None):
         else int(getattr(settings, "TERMINAL_WEB_TOKEN_MAX_AGE", 43200))
     )
     return signing.loads(token, salt=TERMINAL_WEB_SALT, max_age=resolved_max_age)
+
+
+def build_terminal_ws_path(token):
+    return f"/blog/ws/terminal/{token}/"

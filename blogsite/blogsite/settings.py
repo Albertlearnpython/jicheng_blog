@@ -56,6 +56,10 @@ CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", False)
 SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
 APP_PUBLIC_BASE_URL = os.environ.get("APP_PUBLIC_BASE_URL", "").strip()
 TERMINAL_WEB_TOKEN_MAX_AGE = int(os.environ.get("TERMINAL_WEB_TOKEN_MAX_AGE", "43200"))
+TERMINAL_WEB_CAPTURE_LINES = int(os.environ.get("TERMINAL_WEB_CAPTURE_LINES", "200"))
+TERMINAL_WEBSOCKET_POLL_SECONDS = float(
+    os.environ.get("TERMINAL_WEBSOCKET_POLL_SECONDS", "1.0")
+)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
     "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
     False,
@@ -71,6 +75,7 @@ SECURE_REFERRER_POLICY = os.environ.get(
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -92,6 +97,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'blogsite.urls'
+ASGI_APPLICATION = 'blogsite.asgi.application'
 
 TEMPLATES = [
     {
@@ -109,6 +115,11 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'blogsite.wsgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
+}
 
 
 # Database

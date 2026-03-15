@@ -2,8 +2,12 @@ import json
 from uuid import uuid4
 from unittest.mock import ANY, patch
 
-from django.test import SimpleTestCase, TestCase, override_settings
+from asgiref.sync import async_to_sync
+from channels.testing.websocket import WebsocketCommunicator
+from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+
+from blogsite.asgi import application
 
 from .feishu_views import _extract_text_message, _parse_calendar_command, process_feishu_event
 from .models import FeishuChatSession, RemoteChangeRequest
@@ -590,6 +594,7 @@ class TerminalWebViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Linux Terminal")
+        self.assertContains(response, "/blog/ws/terminal/")
 
     @patch("blog.views.RemoteTerminalManager")
     def test_terminal_api_returns_snapshot(self, terminal_manager_cls):
@@ -616,3 +621,62 @@ class TerminalWebViewTests(TestCase):
         self.assertEqual(payload["profile"], "codex")
         self.assertEqual(payload["cwd"], "/opt/linuxclaw")
         self.assertEqual(payload["program"], "node")
+
+
+class TerminalWebsocketTests(TransactionTestCase):
+    @override_settings(TERMINAL_WEBSOCKET_POLL_SECONDS=60)
+    @patch("blog.consumers._terminal_status_snapshot")
+    @patch("blog.consumers._terminal_send_snapshot")
+    def test_terminal_socket_streams_snapshot_and_command_result(
+        self,
+        send_snapshot_mock,
+        status_snapshot_mock,
+    ):
+        session = FeishuChatSession.objects.create(
+            chat_id="oc_terminal_ws_1",
+            user_open_id="ou_x",
+            memory={"terminal": {"active": True, "profile": "shell"}},
+        )
+        token = create_terminal_access_token(session.chat_id, profile="shell")
+
+        status_snapshot_mock.return_value = {
+            "exists": True,
+            "cwd": "/opt/linuxclaw",
+            "program": "bash",
+            "output": "ready",
+        }
+        send_snapshot_mock.return_value = {
+            "exists": True,
+            "cwd": "/opt/linuxclaw",
+            "program": "bash",
+            "output": "ready\npwd\n/opt/linuxclaw",
+        }
+
+        async def scenario():
+            communicator = WebsocketCommunicator(
+                application,
+                f"/blog/ws/terminal/{token}/",
+                headers=[
+                    (b"host", b"testserver"),
+                    (b"origin", b"http://testserver"),
+                ],
+            )
+            connected, _ = await communicator.connect()
+            self.assertTrue(connected)
+
+            first_payload = await communicator.receive_json_from()
+            self.assertTrue(first_payload["ok"])
+            self.assertTrue(first_payload["active"])
+            self.assertTrue(first_payload["replace"])
+            self.assertEqual(first_payload["profile"], "shell")
+            self.assertEqual(first_payload["cwd"], "/opt/linuxclaw")
+
+            await communicator.send_json_to({"action": "send", "text": "pwd"})
+            second_payload = await communicator.receive_json_from()
+            self.assertTrue(second_payload["ok"])
+            self.assertFalse(second_payload["replace"])
+            self.assertIn("/opt/linuxclaw", second_payload["output"])
+
+            await communicator.disconnect()
+
+        async_to_sync(scenario)()

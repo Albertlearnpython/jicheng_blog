@@ -5,7 +5,6 @@ import re
 from html import escape
 
 from django.conf import settings
-from django.core import signing
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404, JsonResponse
@@ -19,11 +18,19 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.http import require_http_methods
 
-from .models import FeishuChatSession, Post
+from .models import Post
 from .openai_client import OpenAIConfigError, OpenAIRequestError, create_chat_response
 from .remote_executor import RemoteExecutorError
 from .remote_terminal import RemoteTerminalError, RemoteTerminalManager
-from .terminal_web import parse_terminal_access_token
+from .terminal_state import (
+    TerminalSessionError,
+    clear_terminal_state,
+    get_terminal_state,
+    resolve_terminal_session,
+    terminal_snapshot_payload,
+    update_terminal_state,
+)
+from .terminal_web import build_terminal_ws_path
 
 logger = logging.getLogger(__name__)
 
@@ -563,74 +570,14 @@ def _terminal_page_site():
     return _site_context(posts)
 
 
-def _terminal_state(session):
-    memory = dict(session.memory or {})
-    state = memory.get("terminal") or {}
-    if not isinstance(state, dict):
-        state = {}
-    return memory, dict(state)
-
-
-def _terminal_state_save(session, state):
-    memory = dict(session.memory or {})
-    memory["terminal"] = state
-    session.memory = memory
-    session.save(update_fields=["memory", "updated_at"])
-
-
-def _terminal_state_update(session, **updates):
-    _, state = _terminal_state(session)
-    state.update(updates)
-    _terminal_state_save(session, state)
-    return state
-
-
-def _terminal_state_clear(session):
-    return _terminal_state_update(
-        session,
-        active=False,
-        profile="",
-        passthrough=False,
-        cwd="",
-        program="",
-        output="",
-    )
-
-
-def _resolve_terminal_session(token):
-    try:
-        payload = parse_terminal_access_token(token)
-    except signing.BadSignature as exc:
-        raise Http404("Invalid terminal token.") from exc
-
-    chat_id = (payload.get("chat_id") or "").strip()
-    if not chat_id:
-        raise Http404("Missing terminal chat id.")
-
-    session = FeishuChatSession.objects.filter(chat_id=chat_id).first()
-    if not session:
-        raise Http404("Terminal session was not found.")
-
-    return session, payload
-
-
-def _terminal_snapshot_payload(session, snapshot):
-    _, state = _terminal_state(session)
-    return {
-        "ok": True,
-        "active": bool(snapshot.get("exists", True)),
-        "profile": snapshot.get("profile") or state.get("profile") or "shell",
-        "cwd": snapshot.get("cwd", ""),
-        "program": snapshot.get("program", ""),
-        "output": snapshot.get("output", ""),
-        "passthrough": bool(state.get("passthrough", True)),
-    }
-
-
 @require_GET
 def terminal_page(request, token):
-    session, payload = _resolve_terminal_session(token)
-    state = (session.memory or {}).get("terminal") or {}
+    try:
+        session, payload = resolve_terminal_session(token)
+    except TerminalSessionError as exc:
+        raise Http404(str(exc)) from exc
+
+    state = get_terminal_state(session)
 
     return render(
         request,
@@ -640,6 +587,7 @@ def terminal_page(request, token):
             "site": _terminal_page_site(),
             "terminal_token": token,
             "terminal_api_url": reverse("terminal-api", kwargs={"token": token}),
+            "terminal_ws_url": build_terminal_ws_path(token),
             "terminal_profile": payload.get("profile") or state.get("profile") or "shell",
             "terminal_active": bool(state.get("active")),
         },
@@ -649,7 +597,11 @@ def terminal_page(request, token):
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def terminal_api(request, token):
-    session, payload = _resolve_terminal_session(token)
+    try:
+        session, payload = resolve_terminal_session(token)
+    except TerminalSessionError as exc:
+        raise Http404(str(exc)) from exc
+
     manager = RemoteTerminalManager()
 
     if request.method == "GET":
@@ -659,7 +611,7 @@ def terminal_api(request, token):
             return JsonResponse({"ok": False, "error": str(exc)}, status=502)
 
         if not snapshot.get("exists"):
-            _terminal_state_clear(session)
+            clear_terminal_state(session)
             return JsonResponse(
                 {
                     "ok": True,
@@ -672,8 +624,8 @@ def terminal_api(request, token):
                 }
             )
 
-        profile = ((session.memory or {}).get("terminal") or {}).get("profile") or payload.get("profile") or "shell"
-        _terminal_state_update(
+        profile = get_terminal_state(session).get("profile") or payload.get("profile") or "shell"
+        state = update_terminal_state(
             session,
             active=True,
             profile=profile,
@@ -683,7 +635,7 @@ def terminal_api(request, token):
             output=snapshot.get("output", ""),
         )
         snapshot["profile"] = profile
-        return JsonResponse(_terminal_snapshot_payload(session, snapshot))
+        return JsonResponse(terminal_snapshot_payload(state, snapshot, fallback_profile=profile))
 
     try:
         request_payload = json.loads(request.body.decode("utf-8") or "{}")
@@ -698,7 +650,7 @@ def terminal_api(request, token):
             snapshot = manager.send_key(session.chat_id, request_payload.get("key", ""))
         elif action == "close":
             manager.close(session.chat_id)
-            _terminal_state_clear(session)
+            clear_terminal_state(session)
             return JsonResponse({"ok": True, "active": False, "closed": True})
         elif action == "open":
             profile = (request_payload.get("profile") or payload.get("profile") or "shell").strip().lower()
@@ -710,7 +662,7 @@ def terminal_api(request, token):
         return JsonResponse({"ok": False, "error": str(exc)}, status=502)
 
     profile = snapshot.get("profile") or payload.get("profile") or "shell"
-    _terminal_state_update(
+    state = update_terminal_state(
         session,
         active=True,
         profile=profile,
@@ -720,4 +672,4 @@ def terminal_api(request, token):
         output=snapshot.get("output", ""),
     )
     snapshot["profile"] = profile
-    return JsonResponse(_terminal_snapshot_payload(session, snapshot))
+    return JsonResponse(terminal_snapshot_payload(state, snapshot, fallback_profile=profile))

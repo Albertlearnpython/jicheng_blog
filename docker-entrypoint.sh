@@ -16,14 +16,17 @@ cd "$APP_DIR"
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
-set -- gunicorn blogsite.wsgi:application \
-  --bind 0.0.0.0:8000 \
-  --workers "${GUNICORN_WORKERS:-2}" \
-  --timeout "${GUNICORN_TIMEOUT:-120}" \
-  --access-logfile - \
-  --error-logfile -
+set -- uvicorn blogsite.asgi:application \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --workers "${UVICORN_WORKERS:-${GUNICORN_WORKERS:-1}}" \
+  --proxy-headers \
+  --forwarded-allow-ips="*" \
+  --timeout-keep-alive "${UVICORN_TIMEOUT_KEEP_ALIVE:-5}" \
+  --ws-ping-interval "${UVICORN_WS_PING_INTERVAL:-20}" \
+  --ws-ping-timeout "${UVICORN_WS_PING_TIMEOUT:-20}"
 
-if [ "${GUNICORN_RELOAD:-0}" = "1" ]; then
+if [ "${UVICORN_RELOAD:-${GUNICORN_RELOAD:-0}}" = "1" ]; then
   set -- "$@" --reload
 fi
 

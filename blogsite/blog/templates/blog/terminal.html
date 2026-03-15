@@ -1,22 +1,27 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Linux Terminal</title>
+    <link rel="stylesheet" href="{% static 'blog/vendor/xterm/xterm.css' %}">
     <style>
         :root {
-            --bg: #0a0f0d;
-            --panel: #101917;
-            --panel-soft: #15211e;
-            --line: rgba(127, 180, 141, 0.2);
-            --text: #d8eadc;
-            --muted: #7ea58a;
-            --accent: #8ef0a9;
-            --accent-strong: #57d17b;
-            --danger: #ff7b6b;
-            --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-            --mono: "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+            --app-height: 100dvh;
+            --bg: #07131a;
+            --panel: rgba(10, 26, 33, 0.92);
+            --panel-strong: rgba(8, 20, 27, 0.98);
+            --panel-soft: rgba(18, 40, 49, 0.78);
+            --line: rgba(112, 205, 241, 0.18);
+            --line-strong: rgba(112, 205, 241, 0.32);
+            --text: #e2f4fb;
+            --muted: #90b7c6;
+            --accent: #6de0ff;
+            --accent-strong: #8df9d2;
+            --danger: #ff8b7f;
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+            --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
             --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
         }
 
@@ -24,270 +29,428 @@
             box-sizing: border-box;
         }
 
+        html,
         body {
             margin: 0;
-            min-height: 100vh;
+            min-height: 100%;
             background:
-                radial-gradient(circle at top right, rgba(87, 209, 123, 0.18), transparent 30%),
-                radial-gradient(circle at bottom left, rgba(46, 104, 64, 0.4), transparent 35%),
-                var(--bg);
+                radial-gradient(circle at top right, rgba(109, 224, 255, 0.14), transparent 32%),
+                radial-gradient(circle at bottom left, rgba(141, 249, 210, 0.12), transparent 26%),
+                linear-gradient(180deg, #07131a 0%, #061018 55%, #040b11 100%);
             color: var(--text);
             font-family: var(--sans);
         }
 
-        .terminal-app {
-            min-height: 100vh;
-            display: grid;
-            grid-template-rows: auto 1fr auto;
-            gap: 16px;
-            padding: 16px;
+        body {
+            min-height: var(--app-height);
         }
 
-        .terminal-header,
-        .terminal-footer {
+        button,
+        textarea {
+            font: inherit;
+        }
+
+        .terminal-app {
+            min-height: var(--app-height);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            gap: 14px;
+            padding:
+                max(12px, env(safe-area-inset-top))
+                12px
+                calc(12px + env(safe-area-inset-bottom))
+                12px;
+        }
+
+        .topbar,
+        .composer {
+            border: 1px solid var(--line);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(16px);
+        }
+
+        .topbar {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 22px;
+        }
+
+        .heading {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .eyebrow {
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .heading h1 {
+            margin: 0;
+            font-size: clamp(20px, 4.6vw, 28px);
+            line-height: 1.1;
+        }
+
+        .heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .badge-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-wrap: wrap;
+            min-width: 116px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 32px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.03);
+            font: 600 12px/1 var(--mono);
+        }
+
+        .badge.is-live {
+            color: #03202b;
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+            border-color: transparent;
+        }
+
+        .workspace {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            gap: 14px;
+        }
+
+        .screen-shell,
+        .meta-rail {
+            min-height: 0;
+            border: 1px solid var(--line);
+            border-radius: 26px;
+            background: var(--panel-strong);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .screen-shell {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+        }
+
+        .screen-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 14px 18px;
-            border: 1px solid var(--line);
-            background: rgba(16, 25, 23, 0.86);
-            backdrop-filter: blur(10px);
-            box-shadow: var(--shadow);
-            border-radius: 18px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
         }
 
-        .terminal-title {
+        .window-dots {
+            display: inline-flex;
+            gap: 7px;
+        }
+
+        .window-dots span {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.22);
+        }
+
+        .window-dots span:nth-child(1) {
+            background: #ff8b7f;
+        }
+
+        .window-dots span:nth-child(2) {
+            background: #ffd166;
+        }
+
+        .window-dots span:nth-child(3) {
+            background: #71e58d;
+        }
+
+        .screen-title {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
         }
 
-        .terminal-title strong {
-            font-size: 18px;
-            font-weight: 700;
-            letter-spacing: 0.02em;
+        .screen-title strong {
+            font-size: 14px;
         }
 
-        .terminal-title span {
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .terminal-badges {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            padding: 6px 10px;
-            border-radius: 999px;
-            border: 1px solid var(--line);
+        .screen-title span {
             color: var(--muted);
             font-size: 12px;
-            font-family: var(--mono);
-        }
-
-        .badge.is-active {
-            color: #03250d;
-            background: var(--accent);
-            border-color: transparent;
-            font-weight: 700;
-        }
-
-        .terminal-shell {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            gap: 16px;
-            min-height: 0;
-        }
-
-        .terminal-sidebar,
-        .terminal-main {
-            min-height: 0;
-            border: 1px solid var(--line);
-            background: rgba(16, 25, 23, 0.92);
-            border-radius: 22px;
-            box-shadow: var(--shadow);
-        }
-
-        .terminal-sidebar {
-            padding: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .terminal-main {
-            display: grid;
-            grid-template-rows: 1fr;
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .meta-block {
-            display: flex;
-            flex-direction: column;
+        .terminal-stage {
+            position: relative;
+            min-height: 0;
+            background:
+                linear-gradient(rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+                #04090f;
+        }
+
+        .terminal-viewport {
+            width: 100%;
+            height: 100%;
+            min-height: 420px;
+            padding: 16px;
+        }
+
+        .terminal-overlay {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            top: 16px;
+            z-index: 2;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--line-strong);
+            background: rgba(7, 19, 26, 0.92);
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+            pointer-events: none;
+        }
+
+        .terminal-overlay.is-hidden {
+            display: none;
+        }
+
+        .meta-rail {
+            padding: 14px;
+            display: grid;
+            gap: 12px;
+            align-content: start;
+            overflow: auto;
+        }
+
+        .card {
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid var(--line);
+            background: var(--panel-soft);
+            display: grid;
             gap: 10px;
         }
 
-        .meta-block h2 {
+        .card h2 {
             margin: 0;
-            font-size: 14px;
             color: var(--muted);
+            font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.12em;
         }
 
-        .meta-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 12px;
-            border-radius: 14px;
-            background: var(--panel-soft);
-            border: 1px solid var(--line);
-        }
-
-        .meta-item label {
-            color: var(--muted);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        .meta-item strong,
-        .meta-item span {
-            font-family: var(--mono);
+        .meta-value {
+            font: 600 13px/1.6 var(--mono);
             word-break: break-word;
         }
 
-        .button-grid {
+        .meta-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .tip-list {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .composer {
+            border-radius: 24px;
+            padding: 12px;
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+
+        .toolbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tool-button {
+            flex: 0 0 auto;
+            min-height: 42px;
+            padding: 0 14px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+            cursor: pointer;
+            transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+        }
+
+        .tool-button:active {
+            transform: scale(0.98);
+        }
+
+        .tool-button.is-primary {
+            color: #04212b;
+            font-weight: 700;
+            border-color: transparent;
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        }
+
+        .tool-button.is-danger {
+            color: var(--danger);
+            border-color: rgba(255, 139, 127, 0.26);
+            background: rgba(255, 139, 127, 0.08);
+        }
+
+        .command-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
             gap: 10px;
         }
 
-        button {
-            appearance: none;
-            border: none;
-            cursor: pointer;
-            border-radius: 14px;
-            padding: 12px 14px;
-            font: inherit;
-            transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
-        }
-
-        button:hover {
-            transform: translateY(-1px);
-        }
-
-        button:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .button-primary {
-            background: var(--accent);
-            color: #06200d;
-            font-weight: 700;
-        }
-
-        .button-ghost {
-            background: rgba(255, 255, 255, 0.03);
-            color: var(--text);
-            border: 1px solid var(--line);
-        }
-
-        .button-danger {
-            background: rgba(255, 123, 107, 0.12);
-            color: var(--danger);
-            border: 1px solid rgba(255, 123, 107, 0.2);
-        }
-
-        .terminal-screen {
-            margin: 0;
+        .command-box {
             width: 100%;
-            height: 100%;
-            padding: 22px;
-            overflow: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-family: var(--mono);
-            font-size: 14px;
-            line-height: 1.6;
-            color: var(--text);
-            background:
-                linear-gradient(rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
-                #07100d;
-        }
-
-        .terminal-footer {
-            align-items: flex-end;
-        }
-
-        .terminal-form {
-            flex: 1;
-            display: flex;
-            gap: 12px;
-            align-items: flex-end;
-        }
-
-        .terminal-form textarea {
-            flex: 1;
-            min-height: 72px;
-            max-height: 180px;
-            resize: vertical;
-            border-radius: 16px;
+            min-height: 54px;
+            max-height: 140px;
+            resize: none;
             border: 1px solid var(--line);
-            background: rgba(6, 11, 10, 0.92);
+            border-radius: 16px;
+            background: rgba(3, 10, 15, 0.9);
             color: var(--text);
-            padding: 16px;
-            font: 500 14px/1.6 var(--mono);
+            padding: 14px;
+            font: 500 14px/1.55 var(--mono);
             outline: none;
         }
 
-        .terminal-form textarea:focus {
-            border-color: rgba(142, 240, 169, 0.65);
-            box-shadow: 0 0 0 3px rgba(142, 240, 169, 0.12);
+        .command-box:focus {
+            border-color: rgba(109, 224, 255, 0.52);
+            box-shadow: 0 0 0 3px rgba(109, 224, 255, 0.12);
         }
 
-        .terminal-hint {
-            width: 280px;
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.6;
+        .send-button {
+            min-width: 92px;
+            min-height: 54px;
+            padding: 0 18px;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            color: #05212c;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
         }
 
-        .status-row {
+        .footer-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 12px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
         }
 
-        .status-text {
-            color: var(--muted);
-            font-size: 13px;
+        .footer-row strong {
+            color: var(--text);
+        }
+
+        .xterm {
+            padding: 0;
+        }
+
+        .xterm-viewport {
+            overscroll-behavior: contain;
         }
 
         @media (max-width: 980px) {
-            .terminal-shell {
+            .workspace {
                 grid-template-columns: 1fr;
             }
 
-            .terminal-footer {
+            .meta-rail {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                align-content: stretch;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .terminal-app {
+                gap: 10px;
+                padding:
+                    max(10px, env(safe-area-inset-top))
+                    10px
+                    calc(10px + env(safe-area-inset-bottom))
+                    10px;
+            }
+
+            .topbar {
                 flex-direction: column;
                 align-items: stretch;
+                padding: 14px;
             }
 
-            .terminal-form {
+            .badge-row {
+                justify-content: flex-start;
+            }
+
+            .terminal-viewport {
+                min-height: 48vh;
+                padding: 12px;
+            }
+
+            .meta-rail {
+                grid-template-columns: 1fr 1fr;
+                padding: 10px;
+            }
+
+            .card {
+                padding: 12px;
+            }
+
+            .command-form {
+                grid-template-columns: 1fr;
+            }
+
+            .send-button {
+                width: 100%;
+            }
+
+            .footer-row {
                 flex-direction: column;
-            }
-
-            .terminal-hint {
-                width: auto;
+                align-items: flex-start;
             }
         }
     </style>
@@ -296,226 +459,416 @@
     <div
         class="terminal-app"
         data-terminal-root
-        data-api-url="{{ terminal_api_url }}"
-        data-initial-profile="{{ terminal_profile }}"
-        data-initial-active="{% if terminal_active %}true{% else %}false{% endif %}"
+        data-ws-url="{{ terminal_ws_url }}"
+        data-profile="{{ terminal_profile }}"
+        data-active="{% if terminal_active %}true{% else %}false{% endif %}"
     >
-        <header class="terminal-header">
-            <div class="terminal-title">
-                <strong>Linux Terminal</strong>
-                <span>持续显示的远程终端窗口。输入命令后按 `Ctrl + Enter` 或点发送。</span>
+        <header class="topbar">
+            <div class="heading">
+                <span class="eyebrow">Mobile Terminal</span>
+                <h1>Linux Terminal</h1>
+                <p>手机端优先的远程会话页面。下面的终端实时显示输出，输入区和控制键单独做成触屏友好布局。</p>
             </div>
-            <div class="terminal-badges">
+            <div class="badge-row">
                 <span class="badge" data-badge-profile>{{ terminal_profile }}</span>
-                <span class="badge" data-badge-program>-</span>
-                <span class="badge" data-badge-mode>polling</span>
+                <span class="badge">tmux</span>
+                <span class="badge is-live" data-badge-transport>websocket</span>
                 <span class="badge" data-badge-active>{% if terminal_active %}active{% else %}idle{% endif %}</span>
             </div>
         </header>
 
-        <section class="terminal-shell">
-            <aside class="terminal-sidebar">
-                <div class="meta-block">
+        <main class="workspace">
+            <section class="screen-shell">
+                <div class="screen-header">
+                    <div class="window-dots" aria-hidden="true">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="screen-title">
+                        <strong data-meta-program>connecting...</strong>
+                        <span data-meta-cwd>waiting for terminal session</span>
+                    </div>
+                    <span class="badge" data-meta-status>{% if terminal_active %}active{% else %}idle{% endif %}</span>
+                </div>
+                <div class="terminal-stage">
+                    <div class="terminal-overlay" data-terminal-overlay>正在连接终端...</div>
+                    <div class="terminal-viewport" data-terminal-screen></div>
+                </div>
+            </section>
+
+            <aside class="meta-rail">
+                <section class="card">
                     <h2>Session</h2>
-                    <div class="meta-item">
-                        <label>Profile</label>
-                        <strong data-meta-profile>{{ terminal_profile }}</strong>
+                    <div>
+                        <div class="meta-label">Profile</div>
+                        <div class="meta-value" data-meta-profile>{{ terminal_profile }}</div>
                     </div>
-                    <div class="meta-item">
-                        <label>Program</label>
-                        <span data-meta-program>-</span>
+                    <div>
+                        <div class="meta-label">Transport</div>
+                        <div class="meta-value">WebSocket + tmux</div>
                     </div>
-                    <div class="meta-item">
-                        <label>Directory</label>
-                        <span data-meta-cwd>-</span>
-                    </div>
-                    <div class="meta-item">
-                        <label>Status</label>
-                        <span data-meta-status>{% if terminal_active %}active{% else %}idle{% endif %}</span>
-                    </div>
-                </div>
+                </section>
 
-                <div class="meta-block">
-                    <h2>Controls</h2>
-                    <div class="button-grid">
-                        <button class="button-primary" type="button" data-action="refresh">刷新</button>
-                        <button class="button-ghost" type="button" data-action="reopen">重连</button>
-                        <button class="button-ghost" type="button" data-action="ctrl-c">Ctrl-C</button>
-                        <button class="button-danger" type="button" data-action="close">关闭</button>
+                <section class="card">
+                    <h2>Status</h2>
+                    <div>
+                        <div class="meta-label">Connection</div>
+                        <div class="meta-value" data-status-text>Connecting...</div>
                     </div>
-                </div>
+                    <div>
+                        <div class="meta-label">Program</div>
+                        <div class="meta-value" data-meta-program-card>-</div>
+                    </div>
+                </section>
 
-                <div class="meta-block">
+                <section class="card">
+                    <h2>Directory</h2>
+                    <div class="meta-value" data-meta-cwd-card>-</div>
+                </section>
+
+                <section class="card">
                     <h2>Tips</h2>
-                    <div class="meta-item">
-                        <span>这个页面会自动轮询终端输出，不需要在飞书聊天气泡里一条条看。</span>
-                    </div>
-                    <div class="meta-item">
-                        <span>你可以直接和 Linux shell 或 Codex CLI 对话，适合持续操作。</span>
-                    </div>
-                    <div class="meta-item">
-                        <span>如果看起来卡住，先点“刷新”，再试 `Ctrl-C`。</span>
-                    </div>
-                </div>
+                    <ul class="tip-list">
+                        <li>发送按钮适合手机软键盘，`Ctrl-C`、方向键、`Tab` 放在下面工具条。</li>
+                        <li>如果网络抖动，页面会自动重连；手动点 `Reconnect` 也可以重开连接。</li>
+                        <li>会话底层是持久化 `tmux`，你切出页面再回来，通常还在原来的终端里。</li>
+                    </ul>
+                </section>
             </aside>
+        </main>
 
-            <main class="terminal-main">
-                <pre class="terminal-screen" data-terminal-screen>Loading terminal...</pre>
-            </main>
-        </section>
+        <footer class="composer">
+            <div class="toolbar">
+                <button class="tool-button is-primary" type="button" data-action="reconnect">Reconnect</button>
+                <button class="tool-button" type="button" data-key="ctrl-c">Ctrl-C</button>
+                <button class="tool-button" type="button" data-key="tab">Tab</button>
+                <button class="tool-button" type="button" data-key="esc">Esc</button>
+                <button class="tool-button" type="button" data-key="up">Up</button>
+                <button class="tool-button" type="button" data-key="down">Down</button>
+                <button class="tool-button" type="button" data-action="clear-screen">Clear View</button>
+                <button class="tool-button is-danger" type="button" data-action="close">Close</button>
+            </div>
 
-        <footer class="terminal-footer">
-            <form class="terminal-form" data-terminal-form>
+            <form class="command-form" data-command-form>
                 <textarea
+                    class="command-box"
                     name="command"
                     data-command-input
-                    placeholder="直接输入命令，例如：pwd&#10;docker ps&#10;git status"
+                    placeholder="输入命令，例如：pwd&#10;docker ps&#10;git status"
                     spellcheck="false"
+                    autocorrect="off"
+                    autocapitalize="off"
                 ></textarea>
-                <button class="button-primary" type="submit">发送</button>
+                <button class="send-button" type="submit">Send</button>
             </form>
-            <div class="terminal-hint">
-                <div class="status-row">
-                    <strong>状态</strong>
-                    <span class="status-text" data-status-text>Connecting...</span>
-                </div>
-                <p>点发送会把整段文本发到当前终端会话。`Ctrl + Enter` 也能发送，普通 `Enter` 只换行。</p>
+
+            <div class="footer-row">
+                <div><strong>状态：</strong><span data-footer-status>准备连接</span></div>
+                <div>发送整段命令用按钮最稳，`Ctrl + Enter` 也可发送。</div>
             </div>
         </footer>
     </div>
 
+    <script src="{% static 'blog/vendor/xterm/xterm.js' %}"></script>
+    <script src="{% static 'blog/vendor/xterm/addon-fit.js' %}"></script>
     <script>
         (() => {
             const root = document.querySelector("[data-terminal-root]");
-            if (!root) return;
+            if (!root || !window.Terminal || !window.FitAddon) {
+                return;
+            }
 
-            const apiUrl = root.dataset.apiUrl;
-            const initialProfile = root.dataset.initialProfile || "shell";
+            const wsPath = root.dataset.wsUrl;
+            const initialProfile = root.dataset.profile || "shell";
+            const initialActive = root.dataset.active === "true";
+
             const screen = root.querySelector("[data-terminal-screen]");
-            const form = root.querySelector("[data-terminal-form]");
+            const overlay = root.querySelector("[data-terminal-overlay]");
+            const form = root.querySelector("[data-command-form]");
             const input = root.querySelector("[data-command-input]");
-            const statusText = root.querySelector("[data-status-text]");
             const badgeProfile = root.querySelector("[data-badge-profile]");
-            const badgeProgram = root.querySelector("[data-badge-program]");
             const badgeActive = root.querySelector("[data-badge-active]");
             const metaProfile = root.querySelector("[data-meta-profile]");
             const metaProgram = root.querySelector("[data-meta-program]");
+            const metaProgramCard = root.querySelector("[data-meta-program-card]");
             const metaCwd = root.querySelector("[data-meta-cwd]");
+            const metaCwdCard = root.querySelector("[data-meta-cwd-card]");
             const metaStatus = root.querySelector("[data-meta-status]");
+            const statusText = root.querySelector("[data-status-text]");
+            const footerStatus = root.querySelector("[data-footer-status]");
 
-            let pollingTimer = null;
-            let requestInFlight = false;
+            const term = new Terminal({
+                convertEol: true,
+                cursorBlink: true,
+                disableStdin: true,
+                fontFamily: '"JetBrains Mono", "Cascadia Code", monospace',
+                fontSize: window.innerWidth <= 720 ? 13 : 14,
+                lineHeight: 1.28,
+                scrollback: 1200,
+                theme: {
+                    background: "#04090f",
+                    foreground: "#d9f4ff",
+                    cursor: "#6de0ff",
+                    cursorAccent: "#061018",
+                    selectionBackground: "rgba(109, 224, 255, 0.28)",
+                    black: "#061018",
+                    brightBlack: "#40606e",
+                    red: "#ff8b7f",
+                    green: "#8df9d2",
+                    yellow: "#ffd580",
+                    blue: "#6de0ff",
+                    magenta: "#bcadff",
+                    cyan: "#7ae7ff",
+                    white: "#f2fdff",
+                },
+            });
+            const fitAddon = new window.FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+            term.open(screen);
 
-            const setStatus = (text) => {
-                statusText.textContent = text;
+            let socket = null;
+            let reconnectTimer = null;
+            let reconnectDelay = 1000;
+            let manualClose = false;
+            let hasRenderedOutput = false;
+            const pendingMessages = [];
+
+            const setViewportHeight = () => {
+                const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                document.documentElement.style.setProperty("--app-height", `${height}px`);
+                window.requestAnimationFrame(() => fitAddon.fit());
             };
 
-            const setButtonsDisabled = (disabled) => {
-                root.querySelectorAll("button").forEach((button) => {
-                    button.disabled = disabled;
-                });
+            const showOverlay = (text) => {
+                overlay.textContent = text;
+                overlay.classList.remove("is-hidden");
+            };
+
+            const hideOverlay = () => {
+                overlay.classList.add("is-hidden");
+            };
+
+            const normalizeOutput = (text) => (text || "").replace(/\r?\n/g, "\r\n");
+
+            const writeOutput = (text, replace) => {
+                if (replace) {
+                    term.reset();
+                    hasRenderedOutput = false;
+                }
+                if (!text) {
+                    return;
+                }
+                term.write(normalizeOutput(text));
+                hasRenderedOutput = true;
+                term.scrollToBottom();
+            };
+
+            const setConnectionStatus = (text) => {
+                statusText.textContent = text;
+                footerStatus.textContent = text;
             };
 
             const applySnapshot = (payload) => {
                 const active = !!payload.active;
                 const profile = payload.profile || initialProfile;
-                const program = payload.program || "-";
+                const program = payload.program || (active ? "shell" : "-");
                 const cwd = payload.cwd || "-";
-                const output = (payload.output || "").trim();
 
                 badgeProfile.textContent = profile;
-                badgeProgram.textContent = program;
                 badgeActive.textContent = active ? "active" : "idle";
-                badgeActive.classList.toggle("is-active", active);
-
+                badgeActive.classList.toggle("is-live", active);
                 metaProfile.textContent = profile;
                 metaProgram.textContent = program;
+                metaProgramCard.textContent = program;
                 metaCwd.textContent = cwd;
+                metaCwdCard.textContent = cwd;
                 metaStatus.textContent = active ? "active" : "idle";
 
-                screen.textContent = output || (active ? "(no output yet)" : "Session is not active.");
-                screen.scrollTop = screen.scrollHeight;
-                setStatus(active ? "Connected" : "Session closed");
+                if (payload.replace) {
+                    writeOutput(payload.output || "", true);
+                } else if (payload.output) {
+                    writeOutput(payload.output, false);
+                }
+
+                if (!hasRenderedOutput && active) {
+                    term.writeln("\x1b[38;2;109;224;255mConnected. Waiting for output...\x1b[0m");
+                    hasRenderedOutput = true;
+                }
+
+                if (active) {
+                    manualClose = false;
+                    setConnectionStatus("Connected");
+                    hideOverlay();
+                } else {
+                    setConnectionStatus("Session closed");
+                    showOverlay("会话当前未激活。点 Reconnect 可以重新打开。");
+                }
             };
 
-            const requestJson = async (method = "GET", body = null) => {
-                if (requestInFlight) return null;
-                requestInFlight = true;
-                setButtonsDisabled(true);
-                try {
-                    const response = await fetch(apiUrl, {
-                        method,
-                        headers: body ? {"Content-Type": "application/json"} : {},
-                        body: body ? JSON.stringify(body) : null,
-                    });
-                    const payload = await response.json();
-                    if (!response.ok || payload.ok === false) {
-                        throw new Error(payload.error || "Terminal request failed.");
+            const logInfo = (text, color = "109;224;255") => {
+                term.writeln(`\x1b[38;2;${color}m${text}\x1b[0m`);
+                term.scrollToBottom();
+                hasRenderedOutput = true;
+            };
+
+            const flushPendingMessages = () => {
+                while (pendingMessages.length && socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify(pendingMessages.shift()));
+                }
+            };
+
+            const scheduleReconnect = () => {
+                if (manualClose || reconnectTimer) {
+                    return;
+                }
+                setConnectionStatus("Reconnecting...");
+                showOverlay("连接已断开，正在尝试重连...");
+                reconnectTimer = window.setTimeout(() => {
+                    reconnectTimer = null;
+                    connectSocket();
+                    reconnectDelay = Math.min(reconnectDelay * 1.6, 6000);
+                }, reconnectDelay);
+            };
+
+            const websocketUrl = () => {
+                const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+                return `${protocol}//${window.location.host}${wsPath}`;
+            };
+
+            const connectSocket = () => {
+                if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+                    return;
+                }
+
+                manualClose = false;
+                setConnectionStatus("Connecting...");
+                showOverlay("正在连接终端...");
+
+                socket = new WebSocket(websocketUrl());
+                socket.addEventListener("open", () => {
+                    reconnectDelay = 1000;
+                    setConnectionStatus("Connected");
+                    flushPendingMessages();
+                });
+
+                socket.addEventListener("message", (event) => {
+                    let payload = null;
+                    try {
+                        payload = JSON.parse(event.data);
+                    } catch (error) {
+                        logInfo("Invalid terminal payload.", "255;139;127");
+                        return;
                     }
+
+                    if (payload.event === "pong") {
+                        return;
+                    }
+
+                    if (payload.ok === false) {
+                        setConnectionStatus(payload.error || "Terminal error");
+                        showOverlay(payload.error || "终端请求失败。");
+                        logInfo(`[error] ${payload.error || "Terminal request failed."}`, "255;139;127");
+                        return;
+                    }
+
                     applySnapshot(payload);
-                    return payload;
-                } catch (error) {
-                    setStatus(error.message || "Request failed");
-                    return null;
-                } finally {
-                    requestInFlight = false;
-                    setButtonsDisabled(false);
-                }
+                });
+
+                socket.addEventListener("close", () => {
+                    socket = null;
+                    if (!manualClose) {
+                        scheduleReconnect();
+                    }
+                });
+
+                socket.addEventListener("error", () => {
+                    setConnectionStatus("Connection error");
+                });
             };
 
-            const poll = () => requestJson("GET");
-
-            const startPolling = () => {
-                if (pollingTimer) {
-                    clearInterval(pollingTimer);
+            const sendPayload = (payload) => {
+                if (payload.action !== "close") {
+                    manualClose = false;
                 }
-                pollingTimer = window.setInterval(poll, 1200);
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify(payload));
+                    return true;
+                }
+                pendingMessages.push(payload);
+                connectSocket();
+                return false;
             };
 
-            root.querySelectorAll("[data-action]").forEach((button) => {
-                button.addEventListener("click", async () => {
-                    const action = button.dataset.action;
-                    if (action === "refresh") {
-                        await poll();
-                        return;
-                    }
-                    if (action === "reopen") {
-                        await requestJson("POST", {action: "open", profile: badgeProfile.textContent || initialProfile});
-                        return;
-                    }
-                    if (action === "ctrl-c") {
-                        await requestJson("POST", {action: "key", key: "ctrl-c"});
-                        return;
-                    }
-                    if (action === "close") {
-                        await requestJson("POST", {action: "close"});
+            const autosizeInput = () => {
+                input.style.height = "54px";
+                input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
+            };
+
+            root.querySelectorAll("[data-key]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const key = button.dataset.key;
+                    if (sendPayload({action: "key", key})) {
+                        setConnectionStatus(`Sent key: ${key}`);
+                    } else {
+                        setConnectionStatus("Reconnecting...");
                     }
                 });
             });
 
-            form.addEventListener("submit", async (event) => {
+            root.querySelectorAll("[data-action]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const action = button.dataset.action;
+                    if (action === "reconnect") {
+                        sendPayload({action: "open", profile: badgeProfile.textContent || initialProfile});
+                        return;
+                    }
+                    if (action === "close") {
+                        manualClose = true;
+                        sendPayload({action: "close"});
+                        return;
+                    }
+                    if (action === "clear-screen") {
+                        term.clear();
+                        hasRenderedOutput = false;
+                        logInfo("View cleared. Waiting for new output...");
+                    }
+                });
+            });
+
+            form.addEventListener("submit", (event) => {
                 event.preventDefault();
                 const text = input.value.trim();
                 if (!text) {
                     input.focus();
                     return;
                 }
-                const payload = await requestJson("POST", {action: "send", text});
-                if (payload) {
-                    input.value = "";
-                    input.focus();
-                }
+                sendPayload({action: "send", text});
+                setConnectionStatus("Command sent");
+                input.value = "";
+                autosizeInput();
+                input.focus();
             });
 
+            input.addEventListener("input", autosizeInput);
             input.addEventListener("keydown", (event) => {
-                if (event.key === "Enter" && event.ctrlKey) {
+                if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
                     event.preventDefault();
                     form.requestSubmit();
                 }
             });
 
-            poll();
-            startPolling();
+            window.addEventListener("resize", setViewportHeight);
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener("resize", setViewportHeight);
+            }
+
+            setViewportHeight();
+            autosizeInput();
+            if (!initialActive) {
+                showOverlay("当前会话未激活。点 Reconnect 开始新的终端会话。");
+            }
+            connectSocket();
             input.focus();
         })();
     </script>
