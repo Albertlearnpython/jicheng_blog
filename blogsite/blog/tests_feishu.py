@@ -440,6 +440,84 @@ class FeishuRoutingTests(TestCase):
             ],
         )
 
+    @patch("blog.feishu_views._send_chat_message")
+    @patch("blog.feishu_views.RemoteTerminalManager")
+    def test_term_open_codex_enables_passthrough(self, terminal_manager_cls, send_chat_message_mock):
+        terminal_manager = terminal_manager_cls.return_value
+        terminal_manager.open.return_value = {
+            "created": True,
+            "cwd": "/opt/linuxclaw",
+            "program": "codex",
+            "output": "codex ready",
+        }
+
+        process_feishu_event(self._payload("/term open codex"))
+
+        terminal_manager.open.assert_called_once_with("oc_1", profile="codex", cwd="")
+        session = FeishuChatSession.objects.get(chat_id="oc_1")
+        terminal_state = session.memory["terminal"]
+        self.assertTrue(terminal_state["active"])
+        self.assertTrue(terminal_state["passthrough"])
+        self.assertEqual(terminal_state["profile"], "codex")
+        self.assertEqual(terminal_state["program"], "codex")
+        self.assertIn("终端已打开", send_chat_message_mock.call_args.args[1])
+
+    @patch("blog.feishu_views._send_chat_message")
+    @patch("blog.feishu_views.classify_user_request")
+    @patch("blog.feishu_views.RemoteTerminalManager")
+    def test_terminal_passthrough_sends_plain_text_to_session(
+        self,
+        terminal_manager_cls,
+        classify_user_request_mock,
+        send_chat_message_mock,
+    ):
+        terminal_manager = terminal_manager_cls.return_value
+        terminal_manager.send.return_value = {
+            "cwd": "/opt/linuxclaw",
+            "program": "bash",
+            "output": "old output\npwd\n/opt/linuxclaw",
+        }
+        FeishuChatSession.objects.create(
+            chat_id="oc_1",
+            user_open_id="ou_x",
+            memory={
+                "terminal": {
+                    "active": True,
+                    "passthrough": True,
+                    "profile": "shell",
+                    "output": "old output",
+                }
+            },
+        )
+
+        process_feishu_event(self._payload("pwd"))
+
+        terminal_manager.send.assert_called_once_with("oc_1", "pwd", enter=True)
+        classify_user_request_mock.assert_not_called()
+        message = send_chat_message_mock.call_args.args[1]
+        self.assertIn("终端回显", message)
+        self.assertIn("/opt/linuxclaw", message)
+
+    @patch("blog.feishu_views._send_chat_message")
+    def test_term_mode_off_disables_passthrough(self, send_chat_message_mock):
+        FeishuChatSession.objects.create(
+            chat_id="oc_1",
+            user_open_id="ou_x",
+            memory={
+                "terminal": {
+                    "active": True,
+                    "passthrough": True,
+                    "profile": "shell",
+                }
+            },
+        )
+
+        process_feishu_event(self._payload("/term mode off"))
+
+        session = FeishuChatSession.objects.get(chat_id="oc_1")
+        self.assertFalse(session.memory["terminal"]["passthrough"])
+        self.assertIn("终端透传已关闭", send_chat_message_mock.call_args.args[1])
+
 
 class RemoteExecutorValidationTests(SimpleTestCase):
     @override_settings(

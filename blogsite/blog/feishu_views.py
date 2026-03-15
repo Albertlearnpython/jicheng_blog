@@ -31,6 +31,7 @@ from .remote_agent import (
     format_plan_for_user,
 )
 from .remote_executor import RemoteExecutor, RemoteExecutorConfigError, RemoteExecutorError
+from .remote_terminal import RemoteTerminalError, RemoteTerminalManager
 
 logger = logging.getLogger(__name__)
 SESSION_HISTORY_LIMIT = 12
@@ -91,6 +92,24 @@ CALENDAR_DELETE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 CALENDAR_PREFIX_PATTERN = re.compile(r"^/(calendar|schedule|日程)\b", re.IGNORECASE)
+TERMINAL_PREFIX_PATTERN = re.compile(r"^/(term|terminal)\b", re.IGNORECASE)
+TERMINAL_HELP_TEXT = """terminal commands:
+/term help
+/term open [shell|codex] [path]
+/term status
+/term read
+/term send <command>
+/term key <ctrl-c|enter|esc|tab|up|down|left|right|backspace|delete>
+/term ctrl-c
+/term mode <on|off>
+/term close
+
+Notes:
+- `/term open codex` opens a persistent Codex CLI session on the Linux server.
+- After opening, passthrough mode is enabled by default: plain text messages are sent to the terminal.
+- Use `/chat ...` or `/term mode off` when you want normal bot Q&A again.
+"""
+HELP_TEXT += "\n\n" + TERMINAL_HELP_TEXT
 
 
 def _normalize_session_history(history):
@@ -230,6 +249,328 @@ def _merge_notes(*groups):
             if text and text not in merged:
                 merged.append(text)
     return merged
+
+
+def _terminal_access_allowed(sender_open_id):
+    allowed_open_ids = set(settings.FEISHU_TERMINAL_ALLOWED_OPEN_IDS)
+    if not allowed_open_ids:
+        return True
+    return bool(sender_open_id and sender_open_id in allowed_open_ids)
+
+
+def _terminal_state(session):
+    if not session:
+        return {}
+    memory = session.memory or {}
+    state = memory.get("terminal") or {}
+    if not isinstance(state, dict):
+        return {}
+    return dict(state)
+
+
+def _update_terminal_state(session, **updates):
+    if not session:
+        return
+    state = _terminal_state(session)
+    state.update(updates)
+    _set_session_state(session, memory_updates={"terminal": state})
+
+
+def _clear_terminal_state(session):
+    _update_terminal_state(
+        session,
+        active=False,
+        profile="",
+        passthrough=False,
+        cwd="",
+        program="",
+        output="",
+    )
+
+
+def _terminal_has_active_passthrough(session):
+    state = _terminal_state(session)
+    return bool(state.get("active") and state.get("passthrough"))
+
+
+def _terminal_output_delta(previous_output, current_output):
+    previous_lines = (previous_output or "").splitlines()
+    current_lines = (current_output or "").splitlines()
+    max_overlap = min(len(previous_lines), len(current_lines))
+
+    overlap = 0
+    for size in range(max_overlap, 0, -1):
+        if previous_lines[-size:] == current_lines[:size]:
+            overlap = size
+            break
+
+    delta_lines = current_lines[overlap:]
+    if not delta_lines:
+        delta_lines = current_lines[-20:]
+    return "\n".join(delta_lines).strip()
+
+
+def _format_terminal_snapshot(snapshot, session=None, title="终端输出", use_delta=False):
+    state = _terminal_state(session)
+    current_output = (snapshot.get("output") or "").strip()
+    output_text = current_output
+    if use_delta:
+        output_text = _terminal_output_delta(state.get("output", ""), current_output)
+
+    profile = snapshot.get("profile") or state.get("profile") or "shell"
+    lines = [
+        f"{title}: {profile}",
+        f"目录: {snapshot.get('cwd') or '-'}",
+        f"程序: {snapshot.get('program') or '-'}",
+        f"透传: {'on' if state.get('passthrough') else 'off'}",
+        "",
+        output_text or "(no output)",
+    ]
+    return "\n".join(lines)
+
+
+def _parse_terminal_command(text):
+    value = (text or "").strip()
+    if not TERMINAL_PREFIX_PATTERN.match(value):
+        return None
+
+    body = TERMINAL_PREFIX_PATTERN.sub("", value, count=1).strip()
+    if not body or body.lower() == "help":
+        return {"action": "help"}
+
+    parts = body.split(None, 1)
+    action = parts[0].lower()
+    rest = parts[1].strip() if len(parts) > 1 else ""
+
+    if action == "open":
+        profile = "shell"
+        cwd = ""
+        if rest:
+            open_parts = rest.split(None, 1)
+            first = open_parts[0].lower()
+            if first in {"shell", "codex"}:
+                profile = first
+                cwd = open_parts[1].strip() if len(open_parts) > 1 else ""
+            else:
+                cwd = rest
+        return {"action": "open", "profile": profile, "cwd": cwd}
+
+    if action in {"status", "read", "close"}:
+        return {"action": action}
+
+    if action in {"send", "run"}:
+        return {"action": "send", "text": rest}
+
+    if action == "mode":
+        mode = rest.lower()
+        if mode in {"on", "off"}:
+            return {"action": "mode", "enabled": mode == "on"}
+        return {"action": "invalid"}
+
+    if action == "key":
+        return {"action": "key", "key": rest.lower()}
+
+    if action in {"ctrl-c", "interrupt"}:
+        return {"action": "key", "key": "ctrl-c"}
+
+    if action in {"enter", "esc", "tab", "up", "down", "left", "right", "backspace", "delete"}:
+        return {"action": "key", "key": action}
+
+    return {"action": "invalid"}
+
+
+def _handle_terminal_command(chat_id, text, sender_open_id, session=None):
+    command = _parse_terminal_command(text)
+    if command is None:
+        return False
+
+    if command["action"] == "help":
+        _send_session_message(chat_id, TERMINAL_HELP_TEXT, session=session, last_mode="terminal")
+        return True
+
+    if not settings.FEISHU_TERMINAL_ENABLED:
+        _send_session_message(chat_id, "终端模式当前未启用。", session=session, last_mode="terminal")
+        return True
+
+    if not _terminal_access_allowed(sender_open_id):
+        _send_session_message(chat_id, "你当前没有终端模式权限。", session=session, last_mode="terminal")
+        return True
+
+    manager = RemoteTerminalManager()
+
+    try:
+        if command["action"] == "open":
+            snapshot = manager.open(chat_id, profile=command["profile"], cwd=command["cwd"])
+            snapshot["profile"] = command["profile"]
+            _update_terminal_state(
+                session,
+                active=True,
+                profile=command["profile"],
+                passthrough=True,
+                cwd=snapshot.get("cwd", ""),
+                program=snapshot.get("program", ""),
+                output=snapshot.get("output", ""),
+            )
+            message = _format_terminal_snapshot(
+                snapshot,
+                session=session,
+                title="终端已打开" if snapshot.get("created") else "终端已连接",
+            )
+            message += (
+                "\n\n现在你可以直接发送命令到服务器。"
+                "\n退出透传: /term mode off"
+                "\n读取最新输出: /term read"
+                "\n发送 Ctrl-C: /term ctrl-c"
+                "\n关闭会话: /term close"
+            )
+            _send_session_message(chat_id, message, session=session, last_mode="terminal")
+            return True
+
+        if command["action"] == "mode":
+            state = _terminal_state(session)
+            if not state.get("active"):
+                _send_session_message(chat_id, "当前没有活动终端会话。", session=session, last_mode="terminal")
+                return True
+            _update_terminal_state(session, passthrough=command["enabled"])
+            _send_session_message(
+                chat_id,
+                f"终端透传已{'开启' if command['enabled'] else '关闭'}。",
+                session=session,
+                last_mode="terminal",
+            )
+            return True
+
+        if command["action"] == "close":
+            manager.close(chat_id)
+            _clear_terminal_state(session)
+            _send_session_message(chat_id, "终端会话已关闭。", session=session, last_mode="terminal")
+            return True
+
+        if command["action"] == "status":
+            snapshot = manager.status(chat_id)
+            if not snapshot.get("exists"):
+                _clear_terminal_state(session)
+                _send_session_message(chat_id, "当前没有活动终端会话。", session=session, last_mode="terminal")
+                return True
+            state = _terminal_state(session)
+            snapshot["profile"] = state.get("profile") or "shell"
+            _update_terminal_state(
+                session,
+                active=True,
+                cwd=snapshot.get("cwd", ""),
+                program=snapshot.get("program", ""),
+                output=snapshot.get("output", ""),
+            )
+            _send_session_message(
+                chat_id,
+                _format_terminal_snapshot(snapshot, session=session, title="终端状态"),
+                session=session,
+                last_mode="terminal",
+            )
+            return True
+
+        if command["action"] == "read":
+            snapshot = manager.read(chat_id)
+            state = _terminal_state(session)
+            snapshot["profile"] = state.get("profile") or "shell"
+            message = _format_terminal_snapshot(
+                snapshot,
+                session=session,
+                title="终端输出",
+                use_delta=True,
+            )
+            _update_terminal_state(
+                session,
+                active=True,
+                cwd=snapshot.get("cwd", ""),
+                program=snapshot.get("program", ""),
+                output=snapshot.get("output", ""),
+            )
+            _send_session_message(chat_id, message, session=session, last_mode="terminal")
+            return True
+
+        if command["action"] == "send":
+            snapshot = manager.send(chat_id, command["text"], enter=True)
+            state = _terminal_state(session)
+            snapshot["profile"] = state.get("profile") or "shell"
+            message = _format_terminal_snapshot(
+                snapshot,
+                session=session,
+                title="终端回显",
+                use_delta=True,
+            )
+            _update_terminal_state(
+                session,
+                active=True,
+                cwd=snapshot.get("cwd", ""),
+                program=snapshot.get("program", ""),
+                output=snapshot.get("output", ""),
+            )
+            _send_session_message(chat_id, message, session=session, last_mode="terminal")
+            return True
+
+        if command["action"] == "key":
+            snapshot = manager.send_key(chat_id, command["key"])
+            state = _terminal_state(session)
+            snapshot["profile"] = state.get("profile") or "shell"
+            message = _format_terminal_snapshot(
+                snapshot,
+                session=session,
+                title=f"终端按键: {command['key']}",
+                use_delta=True,
+            )
+            _update_terminal_state(
+                session,
+                active=True,
+                cwd=snapshot.get("cwd", ""),
+                program=snapshot.get("program", ""),
+                output=snapshot.get("output", ""),
+            )
+            _send_session_message(chat_id, message, session=session, last_mode="terminal")
+            return True
+
+        _send_session_message(chat_id, TERMINAL_HELP_TEXT, session=session, last_mode="terminal")
+        return True
+    except (RemoteTerminalError, RemoteExecutorConfigError, RemoteExecutorError) as exc:
+        _send_session_message(chat_id, f"终端操作失败: {exc}", session=session, last_mode="terminal")
+        return True
+
+
+def _handle_terminal_passthrough(chat_id, text, sender_open_id, session=None):
+    if not settings.FEISHU_TERMINAL_ENABLED:
+        return False
+    if text.startswith("/"):
+        return False
+    if not _terminal_has_active_passthrough(session):
+        return False
+    if not _terminal_access_allowed(sender_open_id):
+        _send_session_message(chat_id, "你当前没有终端模式权限。", session=session, last_mode="terminal")
+        return True
+
+    manager = RemoteTerminalManager()
+    try:
+        snapshot = manager.send(chat_id, text, enter=True)
+    except (RemoteTerminalError, RemoteExecutorConfigError, RemoteExecutorError) as exc:
+        _send_session_message(chat_id, f"终端操作失败: {exc}", session=session, last_mode="terminal")
+        return True
+
+    state = _terminal_state(session)
+    snapshot["profile"] = state.get("profile") or "shell"
+    message = _format_terminal_snapshot(
+        snapshot,
+        session=session,
+        title="终端回显",
+        use_delta=True,
+    )
+    _update_terminal_state(
+        session,
+        active=True,
+        cwd=snapshot.get("cwd", ""),
+        program=snapshot.get("program", ""),
+        output=snapshot.get("output", ""),
+    )
+    _send_session_message(chat_id, message, session=session, last_mode="terminal")
+    return True
 
 
 def _is_valid_callback(payload):
@@ -776,11 +1117,17 @@ def process_feishu_event(payload):
     history = _normalize_session_history(session.history if session else [])
     _append_session_turn(session, "user", text)
 
-    if text in {"/help", "help", "帮助"}:
+    if text == "/help" or (text in {"help", "帮助"} and not _terminal_has_active_passthrough(session)):
         _send_session_message(chat_id, HELP_TEXT, session=session, last_mode="chat")
         return
 
+    if _handle_terminal_command(chat_id, text, sender_open_id, session=session):
+        return
+
     if _handle_calendar_command(chat_id, text, sender_open_id, session=session):
+        return
+
+    if _handle_terminal_passthrough(chat_id, text, sender_open_id, session=session):
         return
 
     approval_match = APPROVE_PATTERN.match(text)

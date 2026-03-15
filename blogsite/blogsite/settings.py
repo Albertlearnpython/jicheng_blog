@@ -180,6 +180,8 @@ FEISHU_CALENDAR_ID = os.environ.get("FEISHU_CALENDAR_ID", "")
 FEISHU_CALENDAR_TIMEZONE = os.environ.get("FEISHU_CALENDAR_TIMEZONE", "Asia/Shanghai")
 FEISHU_CALENDAR_AUTO_INVITE_SENDER = env_bool("FEISHU_CALENDAR_AUTO_INVITE_SENDER", True)
 FEISHU_CALENDAR_LIST_PAGE_SIZE = int(os.environ.get("FEISHU_CALENDAR_LIST_PAGE_SIZE", "10"))
+FEISHU_TERMINAL_ENABLED = env_bool("FEISHU_TERMINAL_ENABLED", True)
+FEISHU_TERMINAL_ALLOWED_OPEN_IDS = env_list("FEISHU_TERMINAL_ALLOWED_OPEN_IDS", [])
 
 REMOTE_SSH_HOST = os.environ.get("REMOTE_SSH_HOST", "")
 REMOTE_SSH_PORT = int(os.environ.get("REMOTE_SSH_PORT", "22"))
@@ -229,6 +231,12 @@ REMOTE_AGENT_SYSTEM_PROMPT = os.environ.get(
         "Return strict JSON only, minimize edits, and prefer safe, reversible changes."
     ),
 )
+REMOTE_TERMINAL_SESSION_PREFIX = os.environ.get("REMOTE_TERMINAL_SESSION_PREFIX", "linuxclaw")
+REMOTE_TERMINAL_CAPTURE_LINES = int(os.environ.get("REMOTE_TERMINAL_CAPTURE_LINES", "80"))
+REMOTE_TERMINAL_WAIT_SECONDS = float(os.environ.get("REMOTE_TERMINAL_WAIT_SECONDS", "0.6"))
+REMOTE_TERMINAL_MAX_INPUT = int(os.environ.get("REMOTE_TERMINAL_MAX_INPUT", "2000"))
+REMOTE_TERMINAL_SHELL_COMMAND = os.environ.get("REMOTE_TERMINAL_SHELL_COMMAND", "exec bash -li")
+REMOTE_TERMINAL_CODEX_COMMAND = os.environ.get("REMOTE_TERMINAL_CODEX_COMMAND", "exec codex")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
