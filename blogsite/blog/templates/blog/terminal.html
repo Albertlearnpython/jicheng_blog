@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Terminal</title>
+    <style>
+        :root {
+            --bg: #0a0f0d;
+            --panel: #101917;
+            --panel-soft: #15211e;
+            --line: rgba(127, 180, 141, 0.2);
+            --text: #d8eadc;
+            --muted: #7ea58a;
+            --accent: #8ef0a9;
+            --accent-strong: #57d17b;
+            --danger: #ff7b6b;
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+            --mono: "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+            --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top right, rgba(87, 209, 123, 0.18), transparent 30%),
+                radial-gradient(circle at bottom left, rgba(46, 104, 64, 0.4), transparent 35%),
+                var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+        }
+
+        .terminal-app {
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .terminal-header,
+        .terminal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 18px;
+            border: 1px solid var(--line);
+            background: rgba(16, 25, 23, 0.86);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow);
+            border-radius: 18px;
+        }
+
+        .terminal-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .terminal-title strong {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .terminal-title span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .terminal-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+            font-family: var(--mono);
+        }
+
+        .badge.is-active {
+            color: #03250d;
+            background: var(--accent);
+            border-color: transparent;
+            font-weight: 700;
+        }
+
+        .terminal-shell {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        .terminal-sidebar,
+        .terminal-main {
+            min-height: 0;
+            border: 1px solid var(--line);
+            background: rgba(16, 25, 23, 0.92);
+            border-radius: 22px;
+            box-shadow: var(--shadow);
+        }
+
+        .terminal-sidebar {
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .terminal-main {
+            display: grid;
+            grid-template-rows: 1fr;
+            overflow: hidden;
+        }
+
+        .meta-block {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .meta-block h2 {
+            margin: 0;
+            font-size: 14px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 12px;
+            border-radius: 14px;
+            background: var(--panel-soft);
+            border: 1px solid var(--line);
+        }
+
+        .meta-item label {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .meta-item strong,
+        .meta-item span {
+            font-family: var(--mono);
+            word-break: break-word;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        button {
+            appearance: none;
+            border: none;
+            cursor: pointer;
+            border-radius: 14px;
+            padding: 12px 14px;
+            font: inherit;
+            transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-primary {
+            background: var(--accent);
+            color: #06200d;
+            font-weight: 700;
+        }
+
+        .button-ghost {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            border: 1px solid var(--line);
+        }
+
+        .button-danger {
+            background: rgba(255, 123, 107, 0.12);
+            color: var(--danger);
+            border: 1px solid rgba(255, 123, 107, 0.2);
+        }
+
+        .terminal-screen {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            padding: 22px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: var(--mono);
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text);
+            background:
+                linear-gradient(rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+                #07100d;
+        }
+
+        .terminal-footer {
+            align-items: flex-end;
+        }
+
+        .terminal-form {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .terminal-form textarea {
+            flex: 1;
+            min-height: 72px;
+            max-height: 180px;
+            resize: vertical;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(6, 11, 10, 0.92);
+            color: var(--text);
+            padding: 16px;
+            font: 500 14px/1.6 var(--mono);
+            outline: none;
+        }
+
+        .terminal-form textarea:focus {
+            border-color: rgba(142, 240, 169, 0.65);
+            box-shadow: 0 0 0 3px rgba(142, 240, 169, 0.12);
+        }
+
+        .terminal-hint {
+            width: 280px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-text {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        @media (max-width: 980px) {
+            .terminal-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .terminal-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .terminal-form {
+                flex-direction: column;
+            }
+
+            .terminal-hint {
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div
+        class="terminal-app"
+        data-terminal-root
+        data-api-url="{{ terminal_api_url }}"
+        data-initial-profile="{{ terminal_profile }}"
+        data-initial-active="{% if terminal_active %}true{% else %}false{% endif %}"
+    >
+        <header class="terminal-header">
+            <div class="terminal-title">
+                <strong>Linux Terminal</strong>
+                <span>持续显示的远程终端窗口。输入命令后按 `Ctrl + Enter` 或点发送。</span>
+            </div>
+            <div class="terminal-badges">
+                <span class="badge" data-badge-profile>{{ terminal_profile }}</span>
+                <span class="badge" data-badge-program>-</span>
+                <span class="badge" data-badge-mode>polling</span>
+                <span class="badge" data-badge-active>{% if terminal_active %}active{% else %}idle{% endif %}</span>
+            </div>
+        </header>
+
+        <section class="terminal-shell">
+            <aside class="terminal-sidebar">
+                <div class="meta-block">
+                    <h2>Session</h2>
+                    <div class="meta-item">
+                        <label>Profile</label>
+                        <strong data-meta-profile>{{ terminal_profile }}</strong>
+                    </div>
+                    <div class="meta-item">
+                        <label>Program</label>
+                        <span data-meta-program>-</span>
+                    </div>
+                    <div class="meta-item">
+                        <label>Directory</label>
+                        <span data-meta-cwd>-</span>
+                    </div>
+                    <div class="meta-item">
+                        <label>Status</label>
+                        <span data-meta-status>{% if terminal_active %}active{% else %}idle{% endif %}</span>
+                    </div>
+                </div>
+
+                <div class="meta-block">
+                    <h2>Controls</h2>
+                    <div class="button-grid">
+                        <button class="button-primary" type="button" data-action="refresh">刷新</button>
+                        <button class="button-ghost" type="button" data-action="reopen">重连</button>
+                        <button class="button-ghost" type="button" data-action="ctrl-c">Ctrl-C</button>
+                        <button class="button-danger" type="button" data-action="close">关闭</button>
+                    </div>
+                </div>
+
+                <div class="meta-block">
+                    <h2>Tips</h2>
+                    <div class="meta-item">
+                        <span>这个页面会自动轮询终端输出，不需要在飞书聊天气泡里一条条看。</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>你可以直接和 Linux shell 或 Codex CLI 对话，适合持续操作。</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>如果看起来卡住，先点“刷新”，再试 `Ctrl-C`。</span>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="terminal-main">
+                <pre class="terminal-screen" data-terminal-screen>Loading terminal...</pre>
+            </main>
+        </section>
+
+        <footer class="terminal-footer">
+            <form class="terminal-form" data-terminal-form>
+                <textarea
+                    name="command"
+                    data-command-input
+                    placeholder="直接输入命令，例如：pwd&#10;docker ps&#10;git status"
+                    spellcheck="false"
+                ></textarea>
+                <button class="button-primary" type="submit">发送</button>
+            </form>
+            <div class="terminal-hint">
+                <div class="status-row">
+                    <strong>状态</strong>
+                    <span class="status-text" data-status-text>Connecting...</span>
+                </div>
+                <p>点发送会把整段文本发到当前终端会话。`Ctrl + Enter` 也能发送，普通 `Enter` 只换行。</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        (() => {
+            const root = document.querySelector("[data-terminal-root]");
+            if (!root) return;
+
+            const apiUrl = root.dataset.apiUrl;
+            const initialProfile = root.dataset.initialProfile || "shell";
+            const screen = root.querySelector("[data-terminal-screen]");
+            const form = root.querySelector("[data-terminal-form]");
+            const input = root.querySelector("[data-command-input]");
+            const statusText = root.querySelector("[data-status-text]");
+            const badgeProfile = root.querySelector("[data-badge-profile]");
+            const badgeProgram = root.querySelector("[data-badge-program]");
+            const badgeActive = root.querySelector("[data-badge-active]");
+            const metaProfile = root.querySelector("[data-meta-profile]");
+            const metaProgram = root.querySelector("[data-meta-program]");
+            const metaCwd = root.querySelector("[data-meta-cwd]");
+            const metaStatus = root.querySelector("[data-meta-status]");
+
+            let pollingTimer = null;
+            let requestInFlight = false;
+
+            const setStatus = (text) => {
+                statusText.textContent = text;
+            };
+
+            const setButtonsDisabled = (disabled) => {
+                root.querySelectorAll("button").forEach((button) => {
+                    button.disabled = disabled;
+                });
+            };
+
+            const applySnapshot = (payload) => {
+                const active = !!payload.active;
+                const profile = payload.profile || initialProfile;
+                const program = payload.program || "-";
+                const cwd = payload.cwd || "-";
+                const output = (payload.output || "").trim();
+
+                badgeProfile.textContent = profile;
+                badgeProgram.textContent = program;
+                badgeActive.textContent = active ? "active" : "idle";
+                badgeActive.classList.toggle("is-active", active);
+
+                metaProfile.textContent = profile;
+                metaProgram.textContent = program;
+                metaCwd.textContent = cwd;
+                metaStatus.textContent = active ? "active" : "idle";
+
+                screen.textContent = output || (active ? "(no output yet)" : "Session is not active.");
+                screen.scrollTop = screen.scrollHeight;
+                setStatus(active ? "Connected" : "Session closed");
+            };
+
+            const requestJson = async (method = "GET", body = null) => {
+                if (requestInFlight) return null;
+                requestInFlight = true;
+                setButtonsDisabled(true);
+                try {
+                    const response = await fetch(apiUrl, {
+                        method,
+                        headers: body ? {"Content-Type": "application/json"} : {},
+                        body: body ? JSON.stringify(body) : null,
+                    });
+                    const payload = await response.json();
+                    if (!response.ok || payload.ok === false) {
+                        throw new Error(payload.error || "Terminal request failed.");
+                    }
+                    applySnapshot(payload);
+                    return payload;
+                } catch (error) {
+                    setStatus(error.message || "Request failed");
+                    return null;
+                } finally {
+                    requestInFlight = false;
+                    setButtonsDisabled(false);
+                }
+            };
+
+            const poll = () => requestJson("GET");
+
+            const startPolling = () => {
+                if (pollingTimer) {
+                    clearInterval(pollingTimer);
+                }
+                pollingTimer = window.setInterval(poll, 1200);
+            };
+
+            root.querySelectorAll("[data-action]").forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const action = button.dataset.action;
+                    if (action === "refresh") {
+                        await poll();
+                        return;
+                    }
+                    if (action === "reopen") {
+                        await requestJson("POST", {action: "open", profile: badgeProfile.textContent || initialProfile});
+                        return;
+                    }
+                    if (action === "ctrl-c") {
+                        await requestJson("POST", {action: "key", key: "ctrl-c"});
+                        return;
+                    }
+                    if (action === "close") {
+                        await requestJson("POST", {action: "close"});
+                    }
+                });
+            });
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const text = input.value.trim();
+                if (!text) {
+                    input.focus();
+                    return;
+                }
+                const payload = await requestJson("POST", {action: "send", text});
+                if (payload) {
+                    input.value = "";
+                    input.focus();
+                }
+            });
+
+            input.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" && event.ctrlKey) {
+                    event.preventDefault();
+                    form.requestSubmit();
+                }
+            });
+
+            poll();
+            startPolling();
+            input.focus();
+        })();
+    </script>
+</body>
+</html>

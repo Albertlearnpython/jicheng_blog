@@ -7,6 +7,7 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
+from django.urls import reverse
 from django.core.cache import cache
 from django.http import HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -32,6 +33,7 @@ from .remote_agent import (
 )
 from .remote_executor import RemoteExecutor, RemoteExecutorConfigError, RemoteExecutorError
 from .remote_terminal import RemoteTerminalError, RemoteTerminalManager
+from .terminal_web import create_terminal_access_token
 
 logger = logging.getLogger(__name__)
 SESSION_HISTORY_LIMIT = 12
@@ -251,6 +253,14 @@ def _merge_notes(*groups):
     return merged
 
 
+def _build_terminal_web_url(chat_id, profile):
+    base_url = (settings.APP_PUBLIC_BASE_URL or "").strip().rstrip("/")
+    if not base_url:
+        return ""
+    token = create_terminal_access_token(chat_id, profile=profile)
+    return f"{base_url}{reverse('terminal-page', kwargs={'token': token})}"
+
+
 def _terminal_access_allowed(sender_open_id):
     allowed_open_ids = set(settings.FEISHU_TERMINAL_ALLOWED_OPEN_IDS)
     if not allowed_open_ids:
@@ -416,6 +426,7 @@ def _handle_terminal_command(chat_id, text, sender_open_id, session=None):
                 session=session,
                 title="终端已打开" if snapshot.get("created") else "终端已连接",
             )
+            terminal_url = _build_terminal_web_url(chat_id, command["profile"])
             message += (
                 "\n\n现在你可以直接发送命令到服务器。"
                 "\n退出透传: /term mode off"
@@ -423,6 +434,8 @@ def _handle_terminal_command(chat_id, text, sender_open_id, session=None):
                 "\n发送 Ctrl-C: /term ctrl-c"
                 "\n关闭会话: /term close"
             )
+            if terminal_url:
+                message += f"\n网页终端: {terminal_url}"
             _send_session_message(chat_id, message, session=session, last_mode="terminal")
             return True
 

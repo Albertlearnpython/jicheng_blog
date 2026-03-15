@@ -16,6 +16,7 @@ from .remote_agent import (
     format_plan_for_user,
 )
 from .remote_executor import RemoteExecutor, RemoteExecutorError
+from .terminal_web import create_terminal_access_token
 
 
 class FeishuWebhookTests(TestCase):
@@ -442,6 +443,8 @@ class FeishuRoutingTests(TestCase):
 
     @patch("blog.feishu_views._send_chat_message")
     @patch("blog.feishu_views.RemoteTerminalManager")
+    @override_settings(APP_PUBLIC_BASE_URL="http://example.com")
+    @override_settings(FEISHU_TERMINAL_ENABLED=True, FEISHU_TERMINAL_ALLOWED_OPEN_IDS=["ou_x"])
     def test_term_open_codex_enables_passthrough(self, terminal_manager_cls, send_chat_message_mock):
         terminal_manager = terminal_manager_cls.return_value
         terminal_manager.open.return_value = {
@@ -461,10 +464,12 @@ class FeishuRoutingTests(TestCase):
         self.assertEqual(terminal_state["profile"], "codex")
         self.assertEqual(terminal_state["program"], "codex")
         self.assertIn("终端已打开", send_chat_message_mock.call_args.args[1])
+        self.assertIn("http://example.com/blog/terminal/", send_chat_message_mock.call_args.args[1])
 
     @patch("blog.feishu_views._send_chat_message")
     @patch("blog.feishu_views.classify_user_request")
     @patch("blog.feishu_views.RemoteTerminalManager")
+    @override_settings(FEISHU_TERMINAL_ENABLED=True, FEISHU_TERMINAL_ALLOWED_OPEN_IDS=["ou_x"])
     def test_terminal_passthrough_sends_plain_text_to_session(
         self,
         terminal_manager_cls,
@@ -499,6 +504,7 @@ class FeishuRoutingTests(TestCase):
         self.assertIn("/opt/linuxclaw", message)
 
     @patch("blog.feishu_views._send_chat_message")
+    @override_settings(FEISHU_TERMINAL_ENABLED=True, FEISHU_TERMINAL_ALLOWED_OPEN_IDS=["ou_x"])
     def test_term_mode_off_disables_passthrough(self, send_chat_message_mock):
         FeishuChatSession.objects.create(
             chat_id="oc_1",
@@ -569,3 +575,44 @@ class RemotePlanSafetyTests(SimpleTestCase):
                     "tests": [],
                 },
             )
+
+
+class TerminalWebViewTests(TestCase):
+    def test_terminal_page_renders_with_valid_token(self):
+        session = FeishuChatSession.objects.create(
+            chat_id="oc_terminal_1",
+            user_open_id="ou_x",
+            memory={"terminal": {"active": True, "profile": "shell"}},
+        )
+        token = create_terminal_access_token(session.chat_id, profile="shell")
+
+        response = self.client.get(reverse("terminal-page", kwargs={"token": token}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Linux Terminal")
+
+    @patch("blog.views.RemoteTerminalManager")
+    def test_terminal_api_returns_snapshot(self, terminal_manager_cls):
+        session = FeishuChatSession.objects.create(
+            chat_id="oc_terminal_2",
+            user_open_id="ou_x",
+            memory={"terminal": {"active": True, "profile": "codex"}},
+        )
+        terminal_manager = terminal_manager_cls.return_value
+        terminal_manager.status.return_value = {
+            "exists": True,
+            "cwd": "/opt/linuxclaw",
+            "program": "node",
+            "output": "codex output",
+        }
+        token = create_terminal_access_token(session.chat_id, profile="codex")
+
+        response = self.client.get(reverse("terminal-api", kwargs={"token": token}))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["active"])
+        self.assertEqual(payload["profile"], "codex")
+        self.assertEqual(payload["cwd"], "/opt/linuxclaw")
+        self.assertEqual(payload["program"], "node")
