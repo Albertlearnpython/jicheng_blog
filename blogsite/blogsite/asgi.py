@@ -17,11 +17,13 @@ from django.core.asgi import get_asgi_application
 django_asgi_application = get_asgi_application()
 
 from blog.routing import websocket_urlpatterns
-from blog.websocket_security import terminal_origin_validator
+from blog.websocket_security import NormalizeWebSocketPathMiddleware, terminal_origin_validator
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_application,
-        "websocket": terminal_origin_validator(URLRouter(websocket_urlpatterns)),
+        "websocket": NormalizeWebSocketPathMiddleware(
+            terminal_origin_validator(URLRouter(websocket_urlpatterns))
+        ),
     }
 )

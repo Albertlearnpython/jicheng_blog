@@ -1,4 +1,4 @@
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 from channels.security.websocket import OriginValidator, WebsocketDenier
 from django.conf import settings
@@ -49,3 +49,20 @@ def terminal_origin_validator(application):
 
     allowed_origins = allowed_hosts + list(getattr(settings, "TERMINAL_WEBSOCKET_ALLOWED_ORIGINS", []))
     return FeishuCompatibleOriginValidator(application, allowed_origins)
+
+
+class NormalizeWebSocketPathMiddleware:
+    def __init__(self, application):
+        self.application = application
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "websocket":
+            raw_path = (scope.get("path") or "").strip()
+            if raw_path.startswith("ws://") or raw_path.startswith("wss://"):
+                parsed = urlsplit(raw_path)
+                normalized_scope = dict(scope)
+                normalized_scope["path"] = parsed.path or "/"
+                if parsed.query:
+                    normalized_scope["query_string"] = parsed.query.encode("utf-8")
+                scope = normalized_scope
+        return await self.application(scope, receive, send)

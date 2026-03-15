@@ -21,7 +21,7 @@ from .remote_agent import (
 )
 from .remote_executor import RemoteExecutor, RemoteExecutorError
 from .terminal_web import create_terminal_access_code, create_terminal_access_token
-from .websocket_security import terminal_origin_validator
+from .websocket_security import NormalizeWebSocketPathMiddleware, terminal_origin_validator
 
 
 class FeishuWebhookTests(TestCase):
@@ -792,3 +792,21 @@ class TerminalOriginValidatorTests(SimpleTestCase):
 
         connected, _ = async_to_sync(communicator.connect)()
         self.assertFalse(connected)
+
+    def test_normalize_websocket_path_middleware_strips_absolute_url(self):
+        async def app(scope, receive, send):
+            await send({"type": "websocket.accept"})
+            await send({"type": "websocket.send", "text": scope["path"]})
+            await send({"type": "websocket.close"})
+
+        communicator = WebsocketCommunicator(
+            NormalizeWebSocketPathMiddleware(app),
+            "ws://testserver/blog/ws/terminal/test-token/?foo=bar",
+            headers=[(b"host", b"testserver"), (b"origin", b"http://testserver")],
+        )
+
+        connected, _ = async_to_sync(communicator.connect)()
+        self.assertTrue(connected)
+        message = async_to_sync(communicator.receive_from)()
+        self.assertEqual(message, "/blog/ws/terminal/test-token/")
+        async_to_sync(communicator.disconnect)()
