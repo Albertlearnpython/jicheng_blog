@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import re
 from html import escape
@@ -12,10 +13,13 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import Post
 from .openai_client import OpenAIConfigError, OpenAIRequestError, create_chat_response
+
+logger = logging.getLogger(__name__)
 
 VALID_REASONING_EFFORTS = {"none", "minimal", "low", "medium", "high", "xhigh"}
 VALID_VERBOSITY = {"low", "medium", "high"}
@@ -419,7 +423,35 @@ def post_detail(request, pk):
     }
     return render(request, "blog/post_detail.html", context)
 
+def _chat_error_payload(exc):
+    detail = str(exc).strip()
+    lowered = detail.lower()
 
+    if isinstance(exc, OpenAIConfigError):
+        return (
+            {"error": "AI chat is unavailable because the API key is not configured."},
+            503,
+        )
+
+    if "timed out" in lowered:
+        return (
+            {"error": "The AI response timed out. Please try again."},
+            502,
+        )
+
+    if "network error" in lowered:
+        return (
+            {"error": "Network error while contacting the AI service. Please try again."},
+            502,
+        )
+
+    return (
+        {"error": "The AI service is temporarily unavailable. Please try again later."},
+        502,
+    )
+
+
+@ensure_csrf_cookie
 @require_GET
 def chat_page(request):
     posts = list(Post.objects.select_related("author").order_by("-date_posted"))
@@ -474,5 +506,47 @@ def chat_api(request):
         return JsonResponse({"error": str(exc)}, status=500)
     except OpenAIRequestError as exc:
         return JsonResponse({"error": str(exc)}, status=502)
+
+    return JsonResponse(response_data)
+
+
+@require_POST
+def chat_api_v2(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Request body must be valid JSON."}, status=400)
+
+    message = (payload.get("message") or "").strip()
+    if not message:
+        return JsonResponse({"error": "Enter a question before sending the request."}, status=400)
+
+    if len(message) > 4000:
+        return JsonResponse({"error": "Questions must be 4000 characters or fewer."}, status=400)
+
+    reasoning_effort = (payload.get("reasoning_effort") or "").strip() or None
+    verbosity = (payload.get("verbosity") or "").strip() or None
+
+    if reasoning_effort and reasoning_effort not in VALID_REASONING_EFFORTS:
+        return JsonResponse({"error": "Invalid reasoning effort value."}, status=400)
+
+    if verbosity and verbosity not in VALID_VERBOSITY:
+        return JsonResponse({"error": "Invalid verbosity value."}, status=400)
+
+    try:
+        response_data = create_chat_response(
+            message,
+            reasoning_effort=reasoning_effort,
+            verbosity=verbosity,
+        )
+    except (OpenAIConfigError, OpenAIRequestError) as exc:
+        payload, status_code = _chat_error_payload(exc)
+        return JsonResponse(payload, status=status_code)
+    except Exception:
+        logger.exception("Unexpected error while handling AI chat request")
+        return JsonResponse(
+            {"error": "An unexpected error occurred while processing the AI request."},
+            status=500,
+        )
 
     return JsonResponse(response_data)

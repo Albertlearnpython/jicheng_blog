@@ -3,12 +3,12 @@
 {% block title %}AI 实验室 | {{ site.blog_name }}{% endblock %}
 
 {% block content %}
-    <section class="hero-card card">
+    <section class="hero-card card chat-hero">
         <div class="section-kicker">AI Lab</div>
         <h1 class="gradient-title">AI 实验室</h1>
         <p class="hero-text">
-            这是 {{ site.blog_name }} 的实验区，保留模型、推理强度和输出详细度控制，
-            用来测试 AI 对话能力，也为后续扩展更多智能功能留接口。
+            这里保留模型、推理强度和输出详细度的控制入口，用来测试 {{ site.blog_name }}
+            当前的 AI 对话能力，也为后续更完整的智能工具区预留空间。
         </p>
         <div class="stat-grid">
             <div class="stat-card">
@@ -29,68 +29,111 @@
         </div>
     </section>
 
-    <section class="chat-stage">
-        <div class="chat-card card">
+    <section class="chat-stage chat-stage-single">
+        <div class="chat-card card chat-card-main">
             <div class="chat-header">
                 <div>
                     <div class="section-kicker">Conversation</div>
                     <h2>和站点助手对话</h2>
                 </div>
                 <span class="eyebrow-pill{% if api_ready %} is-success{% endif %}">
-                    {% if api_ready %}API 已配置{% else %}API 未配置{% endif %}
+                    {% if api_ready %}API 已就绪{% else %}API 未配置{% endif %}
                 </span>
             </div>
 
-            <div class="chat-messages" data-chat-messages>
-                <article class="message message-assistant">
-                    <div class="message-role">Assistant</div>
-                    <div class="message-body">
-                        这里可以直接测试聊天接口。你可以问代码、博客或 AI 相关的问题。
+            <div class="chat-shell">
+                <div class="chat-messages" data-chat-messages aria-live="polite">
+                    <article class="message message-assistant">
+                        <div class="message-role">Assistant</div>
+                        <div class="message-body">
+                            这里可以直接测试聊天接口。你可以问博客结构、功能规划、文章改写，或者任何与 Python / AI / 阅读相关的问题。
+                        </div>
+                    </article>
+                </div>
+
+                <form class="chat-form chat-form-spacious" data-chat-form data-endpoint="{{ chat_api_url }}">
+                    <label class="field field-message">
+                        <span>你的问题</span>
+                        <textarea
+                            name="message"
+                            rows="6"
+                            placeholder="输入一个具体问题，例如：帮我规划博客下一步适合加什么功能？"
+                        ></textarea>
+                    </label>
+
+                    <div class="chat-toolbar">
+                        <div class="chat-controls">
+                            <label class="field">
+                                <span>推理强度</span>
+                                <select name="reasoning_effort">
+                                    {% for option in reasoning_options %}
+                                        <option value="{{ option }}"{% if option == default_effort %} selected{% endif %}>{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span>输出详细度</span>
+                                <select name="verbosity">
+                                    {% for option in verbosity_options %}
+                                        <option value="{{ option }}"{% if option == default_verbosity %} selected{% endif %}>{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="chat-actions">
+                            <button class="primary-button" type="submit" {% if not api_ready %}disabled{% endif %}>发送问题</button>
+                            <span class="chat-status" data-chat-status data-state="{% if api_ready %}ready{% else %}error{% endif %}">
+                                {% if api_ready %}页面已完成校验，可以直接提问{% else %}请先配置 OPENAI_API_KEY{% endif %}
+                            </span>
+                        </div>
                     </div>
-                </article>
+                </form>
             </div>
-
-            <form class="chat-form" data-chat-form data-endpoint="{{ chat_api_url }}">
-                <label class="field">
-                    <span>你的问题</span>
-                    <textarea name="message" rows="5" placeholder="输入一个问题，例如：帮我规划博客下一步要加什么功能？"></textarea>
-                </label>
-
-                <div class="chat-controls">
-                    <label class="field">
-                        <span>推理强度</span>
-                        <select name="reasoning_effort">
-                            {% for option in reasoning_options %}
-                                <option value="{{ option }}"{% if option == default_effort %} selected{% endif %}>{{ option }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <label class="field">
-                        <span>输出详细度</span>
-                        <select name="verbosity">
-                            {% for option in verbosity_options %}
-                                <option value="{{ option }}"{% if option == default_verbosity %} selected{% endif %}>{{ option }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                </div>
-
-                <div class="chat-actions">
-                    <button class="primary-button" type="submit" {% if not api_ready %}disabled{% endif %}>发送问题</button>
-                    <span class="chat-status" data-chat-status>
-                        {% if api_ready %}等待输入{% else %}请先配置 OPENAI_API_KEY{% endif %}
-                    </span>
-                </div>
-            </form>
         </div>
 
-        <aside class="chat-side card">
-            <div class="sidebar-kicker">Prompt Ideas</div>
-            <ul class="idea-list">
-                <li>帮我给博客新增一个分类系统的设计方案。</li>
-                <li>根据当前站点结构，给出 3 个适合继续扩展的功能。</li>
-                <li>把一篇技术文章改写成更容易阅读的博客风格。</li>
-            </ul>
-        </aside>
+        <div class="chat-support-grid">
+            <section class="chat-side card support-card">
+                <div class="sidebar-kicker">Session</div>
+                <h3>当前会话设置</h3>
+                <p class="support-copy">
+                    先用当前配置测试回答质量，再决定是否扩展更复杂的多轮对话、工作流或工具调用。
+                </p>
+                <div class="support-metrics">
+                    <div class="metric">
+                        <span>模型</span>
+                        <strong>{{ chat_model }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>默认推理</span>
+                        <strong>{{ default_effort }}</strong>
+                    </div>
+                    <div class="metric">
+                        <span>默认详细度</span>
+                        <strong>{{ default_verbosity }}</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="chat-side card support-card">
+                <div class="sidebar-kicker">Prompt Ideas</div>
+                <h3>可以直接试的提问</h3>
+                <ul class="idea-list">
+                    <li>帮我给博客新增一个分类系统的设计方案。</li>
+                    <li>根据当前站点结构，给出 3 个适合继续扩展的功能。</li>
+                    <li>把一篇技术文章改写成更容易阅读的博客风格。</li>
+                </ul>
+            </section>
+
+            <section class="chat-side card support-card">
+                <div class="sidebar-kicker">Tips</div>
+                <h3>使用建议</h3>
+                <ul class="idea-list">
+                    <li>问题越具体，返回越稳定，也更容易继续追问。</li>
+                    <li>如果第一轮回答不够准，可以继续补充场景、限制和目标。</li>
+                    <li>如果页面提示校验失败，先刷新一次页面，再重新提问。</li>
+                </ul>
+            </section>
+        </div>
     </section>
 {% endblock %}

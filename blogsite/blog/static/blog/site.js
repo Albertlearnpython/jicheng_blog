@@ -12,7 +12,7 @@
     };
 
     const defaults = {
-        theme: "paper",
+        theme: "midnight",
         font: "sans",
         density: "comfortable",
         sound: "on",
@@ -76,12 +76,19 @@
         soundButtons.forEach((button) => {
             button.classList.toggle("is-active", enabled);
             button.setAttribute("aria-pressed", String(enabled));
-            button.setAttribute("aria-label", enabled ? "关闭音效" : "开启音效");
-            button.title = enabled ? "关闭音效" : "开启音效";
+            button.setAttribute("aria-label", enabled ? "Disable sound effects" : "Enable sound effects");
+            button.title = enabled ? "Disable sound effects" : "Enable sound effects";
         });
     };
 
-    const scheduleTone = ({ start = 0, duration = 0.06, frequency = 660, frequencyEnd = null, gain = 0.035, type = "triangle" }) => {
+    const scheduleTone = ({
+        start = 0,
+        duration = 0.06,
+        frequency = 660,
+        frequencyEnd = null,
+        gain = 0.035,
+        type = "triangle",
+    }) => {
         const context = getAudioContext();
         if (!context) {
             return;
@@ -262,7 +269,7 @@
             const hours = Math.floor((seconds % 86400) / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
             runtimeLabels.forEach((label) => {
-                label.textContent = `站点运行 ${days} 天 ${hours} 小时 ${minutes} 分钟`;
+                label.textContent = `Site runtime ${days}d ${hours}h ${minutes}m`;
             });
         };
         renderRuntime();
@@ -303,6 +310,15 @@
     const endpoint = chatForm.dataset.endpoint;
     const submitButton = chatForm.querySelector('button[type="submit"]');
     const textarea = chatForm.querySelector('textarea[name="message"]');
+    const requestTimeoutMs = 70000;
+
+    const setStatus = (text, state = "ready") => {
+        if (!status) {
+            return;
+        }
+        status.textContent = text;
+        status.dataset.state = state;
+    };
 
     const appendMessage = (role, text) => {
         const article = document.createElement("article");
@@ -321,31 +337,92 @@
         return match ? decodeURIComponent(match[1]) : "";
     };
 
+    const parseChatError = async (response) => {
+        const contentType = response.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json")) {
+            try {
+                return await response.json();
+            } catch (error) {
+                return { error: "The AI service returned unreadable data. Please try again." };
+            }
+        }
+
+        let text = "";
+        try {
+            text = (await response.text()).trim();
+        } catch (error) {
+            text = "";
+        }
+
+        if (response.status === 403) {
+            return { error: "Request validation failed. Refresh the page and try again." };
+        }
+
+        if (response.status >= 500) {
+            return { error: "The AI service is temporarily unavailable. Please try again later." };
+        }
+
+        if (text) {
+            return { error: text.slice(0, 240) };
+        }
+
+        return { error: `Request failed (${response.status}).` };
+    };
+
+    const formatClientError = (error) => {
+        if (error && error.name === "AbortError") {
+            return "The request timed out. Please try again.";
+        }
+
+        if (error && error.message) {
+            return error.message;
+        }
+
+        return "The request failed. Please try again.";
+    };
+
     chatForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const formData = new FormData(chatForm);
         const message = String(formData.get("message") || "").trim();
+        const csrfToken = getCsrfToken();
 
-        if (!message || !endpoint) {
+        if (!message) {
+            setStatus("Enter a question before sending.", "error");
+            textarea.focus();
+            return;
+        }
+
+        if (!endpoint) {
+            setStatus("The chat endpoint is missing.", "error");
+            return;
+        }
+
+        if (!csrfToken) {
+            setStatus("The page is not ready for secure requests. Refresh and try again.", "error");
+            textarea.focus();
             return;
         }
 
         appendMessage("user", message);
         textarea.value = "";
-        if (status) {
-            status.textContent = "请求中...";
-        }
+        setStatus("Waiting for the AI response...", "loading");
         if (submitButton) {
             submitButton.disabled = true;
         }
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), requestTimeoutMs);
 
         try {
             const response = await fetch(endpoint, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRFToken": getCsrfToken(),
+                    "X-CSRFToken": csrfToken,
                 },
+                signal: controller.signal,
                 body: JSON.stringify({
                     message,
                     reasoning_effort: formData.get("reasoning_effort"),
@@ -353,24 +430,23 @@
                 }),
             });
 
-            const payload = await response.json();
             if (!response.ok) {
-                throw new Error(payload.error || "请求失败");
+                const parsedError = await parseChatError(response);
+                throw new Error(parsedError.error || "The request failed. Please try again.");
             }
 
-            appendMessage("assistant", payload.text || "接口没有返回文本内容。");
-            if (status) {
-                status.textContent = "已完成";
-            }
+            const payload = await response.json();
+            appendMessage("assistant", payload.text || "The API returned no assistant text.");
+            setStatus("Answer received. You can continue with a follow-up.", "success");
         } catch (error) {
-            appendMessage("assistant", error.message || "请求失败");
-            if (status) {
-                status.textContent = "请求失败";
-            }
+            appendMessage("assistant", formatClientError(error));
+            setStatus("This request failed. Adjust the prompt or try again later.", "error");
         } finally {
+            window.clearTimeout(timeoutId);
             if (submitButton) {
                 submitButton.disabled = false;
             }
+            textarea.focus();
         }
     });
 })();

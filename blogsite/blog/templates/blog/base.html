@@ -9,7 +9,15 @@
     <link rel="stylesheet" href="{% static 'blog/site.css' %}">
     {% block extra_head %}{% endblock %}
 </head>
-<body class="blog-page" data-page="{{ page_key|default:'blog' }}" data-site-start="{{ site.launch_iso }}">
+<body
+    class="blog-page"
+    data-page="{{ page_key|default:'blog' }}"
+    data-site-start="{{ site.launch_iso }}"
+    data-theme="midnight"
+    data-font="sans"
+    data-density="comfortable"
+    data-sound="on"
+>
     <div class="page-noise"></div>
     <div class="mobile-overlay" data-sidebar-overlay></div>
 
@@ -82,8 +90,8 @@
                     <div class="control-group">
                         <strong>主题</strong>
                         <div class="option-row">
-                            <button class="option-pill" type="button" data-theme-value="paper">Paper</button>
                             <button class="option-pill" type="button" data-theme-value="midnight">Midnight</button>
+                            <button class="option-pill" type="button" data-theme-value="paper">Paper</button>
                         </div>
                     </div>
                     <div class="control-group">

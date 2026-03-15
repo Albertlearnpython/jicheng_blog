@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-03-15
+
+### Theme and AI chat refinement
+- Switched the default site theme to `midnight`, while keeping `paper` as the alternate manual mode.
+- Reworked the AI chat page into a roomier single-column conversation area with separate support panels below.
+- Fixed browser chat submissions by ensuring the chat page sets a CSRF cookie before front-end requests.
+- Improved AI chat error handling so timeout, config, and upstream failures return stable JSON messages.
+
+### Docker deployment hardening
+- 补充 Django 生产环境安全配置，支持通过环境变量控制反向代理、HTTPS、HSTS、Secure Cookie 与时区。
+- 调整 Docker Compose 为更适合 Linux 服务器部署的模式，移除源码目录整仓挂载，仅保留 `data/` 持久化目录。
+- 改进容器启动脚本，增强 SQLite 目录初始化与 Gunicorn 日志输出。
+- 新增 Linux Docker 部署文档，便于在服务器上完成构建、启动与排障。
+
 ## 2026-03-14
 
 ### Avatar update
