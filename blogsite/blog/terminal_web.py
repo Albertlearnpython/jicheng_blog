@@ -89,10 +89,15 @@ def resolve_terminal_access_code(code, max_age=None):
     candidate = (code or "").strip().lower()
     if not candidate:
         raise signing.BadSignature("Missing terminal access code.")
+    if len(candidate) < 6:
+        raise signing.BadSignature("Terminal access code is too short.")
 
     link = TerminalAccessLink.objects.filter(code=candidate).first()
     if not link:
-        raise signing.BadSignature("Invalid terminal access code.")
+        matches = list(TerminalAccessLink.objects.filter(code__startswith=candidate).order_by("-created_at")[:2])
+        if len(matches) != 1:
+            raise signing.BadSignature("Invalid terminal access code.")
+        link = matches[0]
 
     age_seconds = (timezone.now() - link.created_at).total_seconds()
     if age_seconds > resolved_max_age:

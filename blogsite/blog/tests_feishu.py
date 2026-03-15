@@ -622,6 +622,19 @@ class TerminalWebViewTests(TestCase):
         self.assertContains(response, "Linux Terminal")
         self.assertTrue(TerminalAccessLink.objects.filter(code=code, chat_id=session.chat_id).exists())
 
+    def test_terminal_short_page_accepts_unique_code_prefix(self):
+        session = FeishuChatSession.objects.create(
+            chat_id="oc_terminal_prefix",
+            user_open_id="ou_x",
+            memory={"terminal": {"active": True, "profile": "shell"}},
+        )
+        code = create_terminal_access_code(session.chat_id, profile="shell")
+
+        response = self.client.get(reverse("terminal-short-page", kwargs={"code": code[:7]}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Linux Terminal")
+
     @patch("blog.views.RemoteTerminalManager")
     def test_terminal_api_returns_snapshot(self, terminal_manager_cls):
         session = FeishuChatSession.objects.create(
