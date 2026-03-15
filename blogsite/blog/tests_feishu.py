@@ -21,6 +21,7 @@ from .remote_agent import (
 )
 from .remote_executor import RemoteExecutor, RemoteExecutorError
 from .terminal_web import create_terminal_access_code, create_terminal_access_token
+from .websocket_security import terminal_origin_validator
 
 
 class FeishuWebhookTests(TestCase):
@@ -723,3 +724,71 @@ class TerminalWebsocketTests(TransactionTestCase):
             await communicator.disconnect()
 
         async_to_sync(scenario)()
+
+
+class TerminalOriginValidatorTests(SimpleTestCase):
+    @override_settings(ALLOWED_HOSTS=["testserver"])
+    def test_terminal_origin_validator_allows_missing_origin(self):
+        async def app(scope, receive, send):
+            await send({"type": "websocket.accept"})
+            await send({"type": "websocket.close"})
+
+        communicator = WebsocketCommunicator(
+            terminal_origin_validator(app),
+            "/blog/ws/terminal/test-token/",
+            headers=[(b"host", b"testserver")],
+        )
+
+        connected, _ = async_to_sync(communicator.connect)()
+        self.assertTrue(connected)
+        async_to_sync(communicator.disconnect)()
+
+    @override_settings(ALLOWED_HOSTS=["testserver"])
+    def test_terminal_origin_validator_allows_null_origin(self):
+        async def app(scope, receive, send):
+            await send({"type": "websocket.accept"})
+            await send({"type": "websocket.close"})
+
+        communicator = WebsocketCommunicator(
+            terminal_origin_validator(app),
+            "/blog/ws/terminal/test-token/",
+            headers=[(b"host", b"testserver"), (b"origin", b"null")],
+        )
+
+        connected, _ = async_to_sync(communicator.connect)()
+        self.assertTrue(connected)
+        async_to_sync(communicator.disconnect)()
+
+    @override_settings(
+        ALLOWED_HOSTS=["testserver"],
+        TERMINAL_WEBSOCKET_ALLOWED_ORIGINS=["https://.feishu.cn"],
+    )
+    def test_terminal_origin_validator_allows_configured_feishu_origin(self):
+        async def app(scope, receive, send):
+            await send({"type": "websocket.accept"})
+            await send({"type": "websocket.close"})
+
+        communicator = WebsocketCommunicator(
+            terminal_origin_validator(app),
+            "/blog/ws/terminal/test-token/",
+            headers=[(b"host", b"testserver"), (b"origin", b"https://applink.feishu.cn")],
+        )
+
+        connected, _ = async_to_sync(communicator.connect)()
+        self.assertTrue(connected)
+        async_to_sync(communicator.disconnect)()
+
+    @override_settings(ALLOWED_HOSTS=["testserver"])
+    def test_terminal_origin_validator_rejects_untrusted_origin(self):
+        async def app(scope, receive, send):
+            await send({"type": "websocket.accept"})
+            await send({"type": "websocket.close"})
+
+        communicator = WebsocketCommunicator(
+            terminal_origin_validator(app),
+            "/blog/ws/terminal/test-token/",
+            headers=[(b"host", b"testserver"), (b"origin", b"https://evil.example.com")],
+        )
+
+        connected, _ = async_to_sync(communicator.connect)()
+        self.assertFalse(connected)
