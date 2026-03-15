@@ -1,7 +1,12 @@
 import base64
+import secrets
 
 from django.conf import settings
 from django.core import signing
+from django.urls import reverse
+from django.utils import timezone
+
+from .models import TerminalAccessLink
 
 
 TERMINAL_WEB_SALT = "blog.terminal.web"
@@ -59,3 +64,46 @@ def parse_terminal_access_token(token, max_age=None):
 
 def build_terminal_ws_path(token):
     return f"/blog/ws/terminal/{token}/"
+
+
+def create_terminal_access_code(chat_id, profile="shell"):
+    normalized_profile = (profile or "shell").strip().lower() or "shell"
+    for _ in range(8):
+        code = secrets.token_hex(6)
+        if not TerminalAccessLink.objects.filter(code=code).exists():
+            TerminalAccessLink.objects.create(
+                code=code,
+                chat_id=(chat_id or "").strip(),
+                profile=normalized_profile,
+            )
+            return code
+    raise RuntimeError("Unable to allocate terminal access code.")
+
+
+def resolve_terminal_access_code(code, max_age=None):
+    resolved_max_age = (
+        int(max_age)
+        if max_age is not None
+        else int(getattr(settings, "TERMINAL_WEB_TOKEN_MAX_AGE", 43200))
+    )
+    candidate = (code or "").strip().lower()
+    if not candidate:
+        raise signing.BadSignature("Missing terminal access code.")
+
+    link = TerminalAccessLink.objects.filter(code=candidate).first()
+    if not link:
+        raise signing.BadSignature("Invalid terminal access code.")
+
+    age_seconds = (timezone.now() - link.created_at).total_seconds()
+    if age_seconds > resolved_max_age:
+        raise signing.BadSignature("Terminal access code expired.")
+
+    link.save(update_fields=["last_used_at"])
+    return {
+        "chat_id": link.chat_id,
+        "profile": link.profile,
+    }
+
+
+def build_terminal_short_path(code):
+    return reverse("terminal-short-page", kwargs={"code": code})

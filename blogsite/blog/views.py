@@ -30,7 +30,11 @@ from .terminal_state import (
     terminal_snapshot_payload,
     update_terminal_state,
 )
-from .terminal_web import build_terminal_ws_path
+from .terminal_web import (
+    build_terminal_ws_path,
+    create_terminal_access_token,
+    resolve_terminal_access_code,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -568,6 +572,20 @@ def chat_api_v2(request):
 def _terminal_page_site():
     posts = list(Post.objects.select_related("author").order_by("-date_posted"))
     return _site_context(posts)
+
+
+@require_GET
+def terminal_short_page(request, code):
+    try:
+        payload = resolve_terminal_access_code(code)
+    except signing.BadSignature as exc:
+        raise Http404("Invalid terminal shortcut.") from exc
+
+    token = create_terminal_access_token(
+        payload.get("chat_id", ""),
+        profile=payload.get("profile", "shell"),
+    )
+    return terminal_page(request, token)
 
 
 @require_GET

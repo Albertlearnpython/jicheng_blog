@@ -71,3 +71,17 @@ class FeishuChatSession(models.Model):
 
     def __str__(self):
         return self.chat_id
+
+
+class TerminalAccessLink(models.Model):
+    code = models.CharField(max_length=16, unique=True, db_index=True)
+    chat_id = models.CharField(max_length=128, db_index=True)
+    profile = models.CharField(max_length=32, default="shell")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.code} {self.chat_id} {self.profile}"

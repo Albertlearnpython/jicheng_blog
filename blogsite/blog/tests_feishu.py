@@ -10,7 +10,7 @@ from django.urls import reverse
 from blogsite.asgi import application
 
 from .feishu_views import _extract_text_message, _parse_calendar_command, process_feishu_event
-from .models import FeishuChatSession, RemoteChangeRequest
+from .models import FeishuChatSession, RemoteChangeRequest, TerminalAccessLink
 from .remote_agent import (
     INTENT_CHAT,
     INTENT_REPO,
@@ -20,7 +20,7 @@ from .remote_agent import (
     format_plan_for_user,
 )
 from .remote_executor import RemoteExecutor, RemoteExecutorError
-from .terminal_web import create_terminal_access_token
+from .terminal_web import create_terminal_access_code, create_terminal_access_token
 
 
 class FeishuWebhookTests(TestCase):
@@ -468,7 +468,7 @@ class FeishuRoutingTests(TestCase):
         self.assertEqual(terminal_state["profile"], "codex")
         self.assertEqual(terminal_state["program"], "codex")
         self.assertIn("终端已打开", send_chat_message_mock.call_args.args[1])
-        self.assertIn("http://example.com/blog/terminal/", send_chat_message_mock.call_args.args[1])
+        self.assertIn("http://example.com/blog/t/", send_chat_message_mock.call_args.args[1])
 
     @patch("blog.feishu_views._send_chat_message")
     @patch("blog.feishu_views.classify_user_request")
@@ -588,6 +588,12 @@ class TerminalWebViewTests(TestCase):
         self.assertNotIn(":", token)
         self.assertNotIn("/", token)
 
+    def test_terminal_access_code_is_short_and_hex(self):
+        code = create_terminal_access_code("oc_terminal_code", profile="shell")
+
+        self.assertEqual(len(code), 12)
+        self.assertRegex(code, r"^[0-9a-f]+$")
+
     def test_terminal_page_renders_with_valid_token(self):
         session = FeishuChatSession.objects.create(
             chat_id="oc_terminal_1",
@@ -601,6 +607,20 @@ class TerminalWebViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Linux Terminal")
         self.assertContains(response, "/blog/ws/terminal/")
+
+    def test_terminal_short_page_renders_with_valid_code(self):
+        session = FeishuChatSession.objects.create(
+            chat_id="oc_terminal_short",
+            user_open_id="ou_x",
+            memory={"terminal": {"active": True, "profile": "shell"}},
+        )
+        code = create_terminal_access_code(session.chat_id, profile="shell")
+
+        response = self.client.get(reverse("terminal-short-page", kwargs={"code": code}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Linux Terminal")
+        self.assertTrue(TerminalAccessLink.objects.filter(code=code, chat_id=session.chat_id).exists())
 
     @patch("blog.views.RemoteTerminalManager")
     def test_terminal_api_returns_snapshot(self, terminal_manager_cls):

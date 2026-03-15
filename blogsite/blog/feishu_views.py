@@ -33,7 +33,7 @@ from .remote_agent import (
 )
 from .remote_executor import RemoteExecutor, RemoteExecutorConfigError, RemoteExecutorError
 from .remote_terminal import RemoteTerminalError, RemoteTerminalManager
-from .terminal_web import create_terminal_access_token
+from .terminal_web import build_terminal_short_path, create_terminal_access_code
 
 logger = logging.getLogger(__name__)
 SESSION_HISTORY_LIMIT = 12
@@ -257,8 +257,8 @@ def _build_terminal_web_url(chat_id, profile):
     base_url = (settings.APP_PUBLIC_BASE_URL or "").strip().rstrip("/")
     if not base_url:
         return ""
-    token = create_terminal_access_token(chat_id, profile=profile)
-    return f"{base_url}{reverse('terminal-page', kwargs={'token': token})}"
+    code = create_terminal_access_code(chat_id, profile=profile)
+    return f"{base_url}{build_terminal_short_path(code)}"
 
 
 def _terminal_access_allowed(sender_open_id):
