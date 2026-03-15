@@ -39,7 +39,7 @@ class RemoteTerminalManager(RemoteExecutor):
     def __init__(self):
         super().__init__()
         self.capture_lines = int(getattr(settings, "REMOTE_TERMINAL_CAPTURE_LINES", 80))
-        self.wait_seconds = float(getattr(settings, "REMOTE_TERMINAL_WAIT_SECONDS", 0.6))
+        self.wait_seconds = max(float(getattr(settings, "REMOTE_TERMINAL_WAIT_SECONDS", 0.2)), 0.05)
         self.max_input_length = int(getattr(settings, "REMOTE_TERMINAL_MAX_INPUT", 2000))
         self.session_prefix = getattr(settings, "REMOTE_TERMINAL_SESSION_PREFIX", "linuxclaw")
 

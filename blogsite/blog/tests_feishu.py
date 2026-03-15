@@ -467,8 +467,12 @@ class FeishuRoutingTests(TestCase):
         self.assertTrue(terminal_state["passthrough"])
         self.assertEqual(terminal_state["profile"], "codex")
         self.assertEqual(terminal_state["program"], "codex")
-        self.assertIn("终端已打开", send_chat_message_mock.call_args.args[1])
-        self.assertIn("http://example.com/blog/t/", send_chat_message_mock.call_args.args[1])
+        message = send_chat_message_mock.call_args.args[1]
+        self.assertIn("终端已就绪", message)
+        self.assertIn("http://example.com/blog/t/", message)
+        self.assertNotIn("/opt/linuxclaw", message)
+        self.assertNotIn("codex ready", message)
+        self.assertLessEqual(len(message.splitlines()), 2)
 
     @patch("blog.feishu_views._send_chat_message")
     @patch("blog.feishu_views.classify_user_request")

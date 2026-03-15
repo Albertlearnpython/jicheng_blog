@@ -148,7 +148,7 @@ class TerminalConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({"ok": False, "event": "error", "error": "Unsupported terminal action."})
 
     async def _poll_terminal(self):
-        interval = float(getattr(settings, "TERMINAL_WEBSOCKET_POLL_SECONDS", 1.0))
+        interval = max(float(getattr(settings, "TERMINAL_WEBSOCKET_POLL_SECONDS", 0.35)), 0.2)
         try:
             while True:
                 await asyncio.sleep(interval)

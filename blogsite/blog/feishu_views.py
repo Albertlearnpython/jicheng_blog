@@ -261,6 +261,15 @@ def _build_terminal_web_url(chat_id, profile):
     return f"{base_url}{build_terminal_short_path(code)}"
 
 
+def _format_terminal_open_message(terminal_url):
+    lines = ["终端已就绪"]
+    if terminal_url:
+        lines.append(terminal_url)
+    else:
+        lines.append("继续直接发送命令即可。")
+    return "\n".join(lines)
+
+
 def _terminal_access_allowed(sender_open_id):
     allowed_open_ids = set(settings.FEISHU_TERMINAL_ALLOWED_OPEN_IDS)
     if not allowed_open_ids:
@@ -421,21 +430,8 @@ def _handle_terminal_command(chat_id, text, sender_open_id, session=None):
                 program=snapshot.get("program", ""),
                 output=snapshot.get("output", ""),
             )
-            message = _format_terminal_snapshot(
-                snapshot,
-                session=session,
-                title="终端已打开" if snapshot.get("created") else "终端已连接",
-            )
             terminal_url = _build_terminal_web_url(chat_id, command["profile"])
-            message += (
-                "\n\n现在你可以直接发送命令到服务器。"
-                "\n退出透传: /term mode off"
-                "\n读取最新输出: /term read"
-                "\n发送 Ctrl-C: /term ctrl-c"
-                "\n关闭会话: /term close"
-            )
-            if terminal_url:
-                message += f"\n网页终端: {terminal_url}"
+            message = _format_terminal_open_message(terminal_url)
             _send_session_message(chat_id, message, session=session, last_mode="terminal")
             return True
 
