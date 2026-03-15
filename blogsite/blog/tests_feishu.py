@@ -582,6 +582,12 @@ class RemotePlanSafetyTests(SimpleTestCase):
 
 
 class TerminalWebViewTests(TestCase):
+    def test_terminal_token_is_public_url_safe(self):
+        token = create_terminal_access_token("oc_terminal_safe", profile="shell")
+
+        self.assertNotIn(":", token)
+        self.assertNotIn("/", token)
+
     def test_terminal_page_renders_with_valid_token(self):
         session = FeishuChatSession.objects.create(
             chat_id="oc_terminal_1",
