@@ -96,6 +96,46 @@ class FeishuWebhookTests(TestCase):
         self.assertEqual(response.json(), {"code": 0})
         start_event_processing_mock.assert_called_once()
 
+    @patch("blog.feishu_views.start_event_processing")
+    @override_settings(FEISHU_VERIFICATION_TOKEN="verify-123")
+    def test_legacy_blog_prefixed_event_path_starts_background_processing(
+        self,
+        start_event_processing_mock,
+    ):
+        payload = {
+            "schema": "2.0",
+            "header": {
+                "event_id": "evt_legacy_1",
+                "event_type": "im.message.receive_v1",
+                "type": "event_callback",
+                "token": "verify-123",
+            },
+            "event": {
+                "sender": {
+                    "sender_type": "user",
+                    "sender_id": {"open_id": "ou_x"},
+                },
+                "message": {
+                    "message_id": "om_legacy_1",
+                    "chat_id": "oc_legacy_1",
+                    "chat_type": "p2p",
+                    "message_type": "text",
+                    "content": json.dumps({"text": "hello"}, ensure_ascii=False),
+                    "mentions": [],
+                },
+            },
+        }
+
+        response = self.client.post(
+            "/blog/api/feishu/events/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"code": 0})
+        start_event_processing_mock.assert_called_once()
+
 
 class FeishuParsingTests(SimpleTestCase):
     def test_extract_text_message_removes_leading_mention(self):
