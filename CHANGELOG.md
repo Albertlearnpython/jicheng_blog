@@ -2,6 +2,12 @@
 
 ## 2026-03-19
 
+### Add database-backed credit-card report pushes
+- Added SQLite persistence for daily credit-card snapshots and per-transaction records.
+- Added a scheduled Feishu push command that can send daily, weekly, and monthly summaries from stored data.
+- Switched the Linux `systemd` timer template to `23:30` and pointed it at the Feishu push workflow.
+- Added Feishu push target settings so the scheduler can reuse the latest bot chat or an explicit receive id.
+
 ### Add daily QQ Mail credit-card spending report
 - Added a QQ Mail IMAP credit-card report module that extracts same-day spending notifications, total spend, merchant data, and category summaries.
 - Added a `manage.py credit_card_report` command that writes both JSON and text reports into the persistent `data/` directory.

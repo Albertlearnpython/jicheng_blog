@@ -28,6 +28,8 @@
 - Persistent Codex conversation continuity
 - Docker deployment
 - Daily QQ Mail credit-card spending report command
+- Daily credit-card snapshots stored in SQLite
+- Daily, weekly, and monthly Feishu push reports
 
 ## Removed from the old project
 
@@ -62,12 +64,18 @@ Common runtime settings:
 - `QQ_IMAP_HOST`
 - `QQ_IMAP_PORT`
 - `CREDIT_CARD_REPORT_OUTPUT_DIR`
+- `CREDIT_CARD_REPORT_DAILY_LAG_DAYS`
+- `CREDIT_CARD_REPORT_WEEKLY_PUSH_WEEKDAY`
+- `CREDIT_CARD_REPORT_MONTHLY_PUSH_DAY`
+- `CREDIT_CARD_REPORT_FEISHU_RECEIVE_ID`
+- `CREDIT_CARD_REPORT_FEISHU_RECEIVE_ID_TYPE`
+- `CREDIT_CARD_REPORT_FEISHU_USE_LATEST_SESSION`
 
 Reference values are in `.env.example`.
 
 ## Daily credit-card report
 
-The repo now includes a Django management command that reads QQ Mail over IMAP, identifies same-day credit-card spending emails, and writes both JSON and text summaries.
+The repo now includes a Django management command that reads QQ Mail over IMAP, identifies daily credit-card spending emails, writes JSON/text summaries, and stores the daily snapshot plus transaction details in SQLite.
 
 Manual run:
 
@@ -88,9 +96,30 @@ Output files default to:
 - `/app/data/credit_card_reports/YYYY-MM-DD.json`
 - `/app/data/credit_card_reports/YYYY-MM-DD.txt`
 
-`deploy/linuxclaw-credit-card-report.service` and `deploy/linuxclaw-credit-card-report.timer` provide a host-side `systemd` template that runs the command every day at `22:00`.
+Stored database tables:
 
-The bundled timer uses `--days-ago 1` because the current mailbox pattern is a next-day digest mail (`每日信用管家`) that summarizes the previous day's credit-card spending.
+- `blog_creditcarddailysnapshot`
+- `blog_creditcardtransactionrecord`
+
+## Scheduled Feishu push
+
+Use this command to sync the daily snapshot into SQLite and push reports to Feishu:
+
+```bash
+cd blogsite
+python manage.py credit_card_push_reports
+```
+
+Behavior:
+
+- Every day at `23:30`, it pushes the daily report for the previous day.
+- Every Monday at `23:30`, it also pushes a weekly report for the previous 7 days.
+- On day `1` of each month at `23:30`, it also pushes a monthly report for the previous month.
+- If `CREDIT_CARD_REPORT_FEISHU_RECEIVE_ID` is empty, the service reuses the latest Feishu bot chat session automatically.
+
+`deploy/linuxclaw-credit-card-report.service` and `deploy/linuxclaw-credit-card-report.timer` provide a host-side `systemd` template for this scheduler.
+
+The bundled timer uses the previous day by default because the current mailbox pattern is a next-day digest mail (`每日信用管家`) that summarizes the previous day's credit-card spending.
 
 ## Local run
 

@@ -99,6 +99,25 @@ CREDIT_CARD_REPORT_OUTPUT_DIR = (
     ).strip()
     or str(BASE_DIR.parent / "data" / "credit_card_reports")
 )
+CREDIT_CARD_REPORT_DAILY_LAG_DAYS = int(os.environ.get("CREDIT_CARD_REPORT_DAILY_LAG_DAYS", "1"))
+CREDIT_CARD_REPORT_WEEKLY_PUSH_WEEKDAY = int(
+    os.environ.get("CREDIT_CARD_REPORT_WEEKLY_PUSH_WEEKDAY", "0")
+)
+CREDIT_CARD_REPORT_MONTHLY_PUSH_DAY = int(
+    os.environ.get("CREDIT_CARD_REPORT_MONTHLY_PUSH_DAY", "1")
+)
+CREDIT_CARD_REPORT_FEISHU_RECEIVE_ID = os.environ.get(
+    "CREDIT_CARD_REPORT_FEISHU_RECEIVE_ID",
+    "",
+).strip()
+CREDIT_CARD_REPORT_FEISHU_RECEIVE_ID_TYPE = (
+    os.environ.get("CREDIT_CARD_REPORT_FEISHU_RECEIVE_ID_TYPE", "chat_id").strip()
+    or "chat_id"
+)
+CREDIT_CARD_REPORT_FEISHU_USE_LATEST_SESSION = env_bool(
+    "CREDIT_CARD_REPORT_FEISHU_USE_LATEST_SESSION",
+    True,
+)
 
 LOGGING = {
     "version": 1,

@@ -7,4 +7,5 @@ venv/
 .env
 data/
 blogsite/staticfiles/
+blogsite/db.sqlite3
 *.log
