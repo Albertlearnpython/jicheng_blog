@@ -1,87 +1,91 @@
-# 孙伯符的博客
+# linuxclaw-web
 
-一个基于 Django 的个人博客网站，当前围绕孙伯符（Noah Brooks）的个人主页、博客内容、AI 实验区和长期记录展开。
+`linuxclaw-web` is now a single-purpose Django service:
 
-## 页面结构
+- Receive Feishu bot callbacks
+- Convert Chinese user messages into stable pinyin prompt text when needed
+- Forward each message to Codex CLI over SSH
+- Reply back to Feishu with the Codex answer
+- Persist one Codex thread per Feishu `chat_id`, so later messages continue the same session
 
-### 1. 首页 `/`
-- 个人简介与站点定位
-- 项目入口卡片
-- 最近文章预览
-- Intro / FAQ 标签页
-- 移动端侧栏与主题切换
-- 动态渐变标题与点击音效
+## Request flow
 
-### 2. 博客首页 `/blog/`
-- 文章列表
-- 标题 / 正文 / 作者搜索
-- 阅读时长与字数统计
-- 主题、字体、密度切换
-- 分页导航
+1. Feishu sends an `im.message.receive_v1` callback to `/api/feishu/events/`
+2. The service extracts the text message and normalizes mention prefixes
+3. Chinese messages are normalized and rewritten into pinyin prompt text when needed
+4. The service looks up the saved `codex_thread_id` for that Feishu chat
+5. It runs either:
+   - `codex exec ...` for a new conversation
+   - `codex exec resume <thread_id> ...` for a continued conversation
+6. The returned reply is sent back to Feishu
+7. The latest `codex_thread_id` is stored in SQLite for the next turn
 
-### 3. 文章详情 `/blog/post/<id>/`
-- 文章头图风格标题卡
-- 正文渲染
-- 阅读进度条
-- 相关文章推荐
+## Kept features
 
-### 4. AI 实验室 `/blog/chat/`
-- OpenAI Responses API 对话页
-- 推理强度选择
-- 输出详细度选择
-- 对话消息流展示
+- Feishu webhook verification
+- Group-message mention gating
+- Duplicate callback suppression by `event_id`
+- Persistent Codex conversation continuity
+- Docker deployment
 
-### 5. 接口 `/blog/api/chat/`
-- 接收前端聊天请求
-- 调用 OpenAI 接口返回结果
+## Removed from the old project
 
-## 功能板块
+- Blog pages
+- AI Chat web UI
+- Remote terminal
+- Calendar integration
+- Repository planning and remote code-change flows
+- Static theme assets and front-end pages
 
-- 个人主页与博客分层路由
-- 响应式双栏布局
-- 明暗主题切换
-- 字体模式切换
-- 内容密度切换
-- 交互音效开关
-- 动态文字渐变效果
-- 博客搜索
-- 分页
-- AI 聊天实验页
-- Django Admin 后台
+## Environment variables
 
-## 技术栈
+Required:
 
-- Django 5
-- SQLite
-- 原生 CSS
-- 原生 JavaScript
+- `FEISHU_APP_ID`
+- `FEISHU_APP_SECRET`
+- `CODEX_SSH_HOST`
+- `CODEX_SSH_USER`
+- `CODEX_SSH_PASSWORD` or `CODEX_SSH_IDENTITY_FILE`
 
-## 本地运行
+Common runtime settings:
+
+- `FEISHU_VERIFICATION_TOKEN`
+- `FEISHU_REQUIRE_GROUP_MENTION`
+- `CODEX_BIN`
+- `CODEX_WORKDIR`
+- `CODEX_MODEL`
+- `CODEX_REASONING_EFFORT`
+- `CODEX_TIMEOUT_SECONDS`
+
+Reference values are in `.env.example`.
+
+## Local run
 
 ```bash
 cd blogsite
+python manage.py migrate
 python manage.py runserver
 ```
 
-打开：
+Health check:
 
-- 首页：`http://127.0.0.1:8000/`
-- 博客：`http://127.0.0.1:8000/blog/`
-- AI 聊天：`http://127.0.0.1:8000/blog/chat/`
-- 后台：`http://127.0.0.1:8000/admin/`
+- `http://127.0.0.1:8000/`
 
-## 测试
+Feishu callback endpoint:
+
+- `POST /api/feishu/events/`
+
+## Docker run
+
+```bash
+docker compose up -d --build
+```
+
+The container starts Django with Gunicorn and stores SQLite data in `./data`.
+
+## Tests
 
 ```bash
 cd blogsite
 python manage.py test
 ```
-
-## 设计说明
-
-本次改版参考了以下站点的布局节奏与视觉风格，并在 Django 项目中重新实现：
-
-- 首页参考：[xuxiny.top](https://xuxiny.top/)
-- 博客页参考：[blog.xuxiny.top](https://blog.xuxiny.top/)
-
-前端代码、文案组织和组件结构均已按当前项目重写，没有直接复制原站资源文件。

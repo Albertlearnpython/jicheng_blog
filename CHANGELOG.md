@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-19
+
+### Simplify linuxclaw-web into a Feishu-to-Codex bot
+- Removed the previous blog, AI web chat, terminal, calendar, and repository-planning feature set.
+- Rebuilt the service as a minimal Django webhook that only handles Feishu callbacks and health checks.
+- Added persistent Codex thread storage per Feishu `chat_id`, so follow-up messages resume the same Codex session.
+- Added a dedicated SSH-based Codex client that runs `codex exec` for new chats and `codex exec resume` for continued chats.
+- Added a lightweight pinyin adapter for Chinese incoming messages before they are handed to Codex, to work around custom-provider CLI input encoding issues.
+- Switched container startup to a smaller Gunicorn-based deployment path and trimmed Python dependencies to the minimum needed runtime set.
+- Updated environment-variable docs, migration history, and README to match the new single-purpose service design.
+
 ## 2026-03-15
 
 ### Theme and AI chat refinement
@@ -9,37 +20,37 @@
 - Improved AI chat error handling so timeout, config, and upstream failures return stable JSON messages.
 
 ### Docker deployment hardening
-- 补充 Django 生产环境安全配置，支持通过环境变量控制反向代理、HTTPS、HSTS、Secure Cookie 与时区。
-- 调整 Docker Compose 为更适合 Linux 服务器部署的模式，移除源码目录整仓挂载，仅保留 `data/` 持久化目录。
-- 改进容器启动脚本，增强 SQLite 目录初始化与 Gunicorn 日志输出。
-- 新增 Linux Docker 部署文档，便于在服务器上完成构建、启动与排障。
+- Added production-oriented Django environment settings for proxy, HTTPS, HSTS, secure cookies, and timezone handling.
+- Adjusted Docker Compose for Linux deployment by keeping only the persistent `data/` mount.
+- Improved the container entrypoint for SQLite initialization and service startup.
+- Added deployment notes for Linux Docker rollout.
 
 ## 2026-03-14
 
 ### Avatar update
-- 将首页头像从临时 SVG 占位图替换为用户提供的原始微信头像 JPG。
+- Replaced the temporary avatar placeholder with the user-provided WeChat avatar image.
 
 ### `ccf269e` Improve scroll performance and reduce animation overhead
-- 优化滚动性能，降低固定背景、毛玻璃和持续发光动画带来的卡顿。
-- 将阅读进度条改为 `requestAnimationFrame` 节流更新，减少滚动时的重绘压力。
-- 保留动态变色文字效果，但改为更轻量的渐变流动方案。
+- Reduced heavy fixed-background and glow effects to improve page scrolling smoothness.
+- Moved the reading-progress updates onto `requestAnimationFrame` to lower scroll-time repaint pressure.
+- Kept the animated text treatment while switching to a lighter implementation.
 
 ### `4e543dd` Personalize profile and animated site styling
-- 将站点个人信息替换为孙伯符 / Noah Brooks 的真实资料。
-- 博客名称更新为“孙伯符的博客”。
-- 首页加入头像展示、联系方式卡片、学校与城市信息。
-- 首页、博客页、文章详情页、AI 实验室页面增加渐变文字、发光变色和强调语句样式。
-- 新增站点头像资源文件 `blogsite/blog/static/blog/noah-avatar.svg`。
-- 同步更新 README 与测试断言。
+- Replaced site profile text with Sun Bofu / Noah Brooks personal information.
+- Renamed the blog to `孙伯符的博客`.
+- Added avatar, contact, school, and city profile sections.
+- Updated multiple pages with animated highlight styles and gradients.
+- Added the `blogsite/blog/static/blog/noah-avatar.svg` asset.
+- Synced README and tests with the site refresh.
 
 ### `5390da1` Improve layout spacing and UI sound feedback
-- 调整全站容器宽度、卡片留白、区块间距与移动端布局，缓解页面拥挤问题。
-- 为主题切换、标签切换、按钮点击、侧栏开合等交互加入 Web Audio 合成音效。
-- 新增音效开关按钮，允许手动开启或关闭交互声音。
+- Increased spacing and improved layout density across the site.
+- Added Web Audio click and toggle effects to key interactions.
+- Added a sound toggle control.
 
 ### `bf6b55c` Redesign homepage and blog experience
-- 将根路径 `/` 重做为个人首页。
-- 将博客主列表迁移到 `/blog/`。
-- 保留并重构文章详情页 `/blog/post/<id>/` 与 AI 聊天页 `/blog/chat/`。
-- 新建统一站点样式与脚本文件，按参考站点风格重写前端结构。
-- 更新 README，补充站点功能板块说明。
+- Rebuilt `/` as the personal homepage.
+- Moved the blog listing to `/blog/`.
+- Kept and reworked the article detail page and AI chat page.
+- Rewrote the front-end structure around the reference style.
+- Updated README with site feature notes.

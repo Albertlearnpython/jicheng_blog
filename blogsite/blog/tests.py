@@ -1,170 +1,239 @@
 import json
 from unittest.mock import patch
+from uuid import uuid4
 
-from django.contrib.auth.models import User
-from django.test import Client, TestCase
-from django.test.utils import override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
-from .models import Post
-from .openai_client import OpenAIRequestError
+from .codex_client import CodexExecutionError, CodexSSHClient, CodexTurnResult
+from .feishu_views import _extract_text_message, process_feishu_event
+from .models import FeishuChatSession
+from .translation_client import maybe_translate_user_message
 
 
-class BlogViewTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.author = User.objects.create_user(username="tester", password="secret123")
-        cls.post = Post.objects.create(
-            title="Django article",
-            content="# Heading\n\nThis is a detailed article body for the blog.",
-            author=cls.author,
-        )
-
-    def test_landing_page_links_to_blog(self):
-        response = self.client.get(reverse("site-home"))
+class ServiceViewTests(TestCase):
+    def test_health_endpoint_returns_ok(self):
+        response = self.client.get(reverse("service-health"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, reverse("blog-home"))
-        self.assertContains(response, "Noah Brooks")
-
-    def test_home_page_shows_post_and_detail_link(self):
-        response = self.client.get(reverse("blog-home"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.post.title)
-        self.assertContains(response, reverse("post-detail", args=[self.post.pk]))
-
-    def test_post_detail_page_shows_full_content(self):
-        response = self.client.get(reverse("post-detail", args=[self.post.pk]))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.post.title)
-        self.assertContains(response, "This is a detailed article body for the blog.")
-
-    def test_missing_post_detail_returns_404(self):
-        response = self.client.get(reverse("post-detail", args=[9999]))
-
-        self.assertEqual(response.status_code, 404)
-
-    def test_chat_page_loads(self):
-        response = self.client.get(reverse("chat-page"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "AI 实验室")
-
-    @patch("blog.views.create_chat_response")
-    @override_settings(OPENAI_API_KEY="test-key")
-    def test_chat_page_sets_csrf_cookie_and_post_succeeds(self, create_chat_response_mock):
-        create_chat_response_mock.return_value = {
-            "response_id": "resp_123",
-            "model": "gpt-5.4",
-            "text": "This is the assistant reply.",
-        }
-
-        client = Client(enforce_csrf_checks=True)
-        page_response = client.get(reverse("chat-page"))
-
-        self.assertEqual(page_response.status_code, 200)
-        self.assertIn("csrftoken", page_response.cookies)
-
-        csrf_token = page_response.cookies["csrftoken"].value
-        response = client.post(
-            reverse("chat-api"),
-            data=json.dumps({"message": "hello from csrf", "verbosity": "medium"}),
-            content_type="application/json",
-            HTTP_X_CSRFTOKEN=csrf_token,
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["text"], "This is the assistant reply.")
-
-    @override_settings(OPENAI_API_KEY="")
-    def test_chat_api_requires_api_key(self):
-        response = self.client.post(
-            reverse("chat-api"),
-            data=json.dumps({"message": "hello"}),
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 503)
         self.assertEqual(
-            response.json()["error"],
-            "AI chat is unavailable because the API key is not configured.",
+            response.json(),
+            {
+                "ok": True,
+                "service": "linuxclaw-codex-bot",
+            },
         )
 
-    def test_chat_api_rejects_invalid_reasoning_effort(self):
+
+class FeishuWebhookTests(TestCase):
+    @override_settings(FEISHU_VERIFICATION_TOKEN="verify-123")
+    def test_url_verification_returns_challenge(self):
         response = self.client.post(
-            reverse("chat-api"),
-            data=json.dumps({"message": "hello", "reasoning_effort": "ultra"}),
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"], "Invalid reasoning effort value.")
-
-    @patch("blog.views.create_chat_response")
-    @override_settings(OPENAI_API_KEY="test-key")
-    def test_chat_api_returns_assistant_reply(self, create_chat_response_mock):
-        create_chat_response_mock.return_value = {
-            "response_id": "resp_123",
-            "model": "gpt-5.4",
-            "text": "This is the assistant reply.",
-        }
-
-        response = self.client.post(
-            reverse("chat-api"),
+            reverse("feishu-events"),
             data=json.dumps(
                 {
-                    "message": "hello",
-                    "reasoning_effort": "high",
-                    "verbosity": "medium",
+                    "type": "url_verification",
+                    "challenge": "abc",
+                    "token": "verify-123",
                 }
             ),
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["text"], "This is the assistant reply.")
-        create_chat_response_mock.assert_called_once_with(
-            "hello",
-            reasoning_effort="high",
-            verbosity="medium",
-        )
+        self.assertEqual(response.json(), {"challenge": "abc"})
 
-    @patch("blog.views.create_chat_response")
-    @override_settings(OPENAI_API_KEY="test-key")
-    def test_chat_api_returns_gateway_error_for_timeout(self, create_chat_response_mock):
-        create_chat_response_mock.side_effect = OpenAIRequestError(
-            "Request to API timed out after 60 seconds."
-        )
-
+    @override_settings(FEISHU_VERIFICATION_TOKEN="verify-123")
+    def test_invalid_token_is_rejected(self):
         response = self.client.post(
-            reverse("chat-api"),
-            data=json.dumps({"message": "hello"}),
+            reverse("feishu-events"),
+            data=json.dumps(
+                {
+                    "type": "url_verification",
+                    "challenge": "abc",
+                    "token": "wrong-token",
+                }
+            ),
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 502)
-        self.assertEqual(
-            response.json()["error"],
-            "The AI response timed out. Please try again.",
-        )
+        self.assertEqual(response.status_code, 403)
 
-    @patch("blog.views.create_chat_response")
-    @override_settings(OPENAI_API_KEY="test-key")
-    def test_chat_api_returns_service_unavailable_for_upstream_failure(self, create_chat_response_mock):
-        create_chat_response_mock.side_effect = OpenAIRequestError(
-            "OpenAI API error 502: bad gateway"
-        )
+    @patch("blog.feishu_views.start_event_processing")
+    @override_settings(FEISHU_VERIFICATION_TOKEN="verify-123")
+    def test_message_event_starts_background_processing(self, start_event_processing_mock):
+        payload = {
+            "schema": "2.0",
+            "header": {
+                "event_id": "evt_1",
+                "event_type": "im.message.receive_v1",
+                "type": "event_callback",
+                "token": "verify-123",
+            },
+            "event": {
+                "sender": {
+                    "sender_type": "user",
+                    "sender_id": {"open_id": "ou_x"},
+                },
+                "message": {
+                    "message_id": "om_1",
+                    "chat_id": "oc_1",
+                    "chat_type": "p2p",
+                    "message_type": "text",
+                    "content": json.dumps({"text": "hello"}, ensure_ascii=False),
+                    "mentions": [],
+                },
+            },
+        }
 
         response = self.client.post(
-            reverse("chat-api"),
-            data=json.dumps({"message": "hello"}),
+            reverse("feishu-events"),
+            data=json.dumps(payload),
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 502)
-        self.assertEqual(
-            response.json()["error"],
-            "The AI service is temporarily unavailable. Please try again later.",
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"code": 0})
+        start_event_processing_mock.assert_called_once()
+
+
+class FeishuParsingTests(SimpleTestCase):
+    def test_extract_text_message_removes_leading_mention(self):
+        event = {
+            "message": {
+                "message_type": "text",
+                "content": json.dumps({"text": "@linuxclaw 帮我看看这个问题"}, ensure_ascii=False),
+                "mentions": [{"name": "linuxclaw"}],
+            }
+        }
+
+        self.assertEqual(_extract_text_message(event), "帮我看看这个问题")
+
+    def test_maybe_translate_user_message_converts_chinese_to_pinyin_prompt(self):
+        adapted = maybe_translate_user_message("你好，介绍一下你自己。")
+
+        self.assertIn("Mandarin Chinese", adapted)
+        self.assertIn("Pinyin message:", adapted)
+        self.assertIn("ni hao", adapted)
+
+    @override_settings(
+        CODEX_BIN="codex",
+        CODEX_PROFILE="",
+        CODEX_MODEL="gpt-5.4",
+        CODEX_REASONING_EFFORT="xhigh",
+        CODEX_SANDBOX="read-only",
+        CODEX_WORKDIR="/opt/linuxclaw-release",
+        CODEX_DISABLE_RESPONSE_STORAGE=True,
+    )
+    def test_codex_resume_command_omits_unsupported_flags(self):
+        command = CodexSSHClient()._build_command(thread_id="thread_123")
+
+        self.assertIn("exec resume", command)
+        self.assertNotIn("--sandbox", command)
+        self.assertNotIn("--cd", command)
+        self.assertIn("thread_123", command)
+
+
+class FeishuRoutingTests(TestCase):
+    def _payload(self, text, *, mentions=None, chat_type="p2p"):
+        return {
+            "schema": "2.0",
+            "header": {
+                "event_id": f"evt_{uuid4().hex}",
+                "event_type": "im.message.receive_v1",
+                "type": "event_callback",
+            },
+            "event": {
+                "sender": {
+                    "sender_type": "user",
+                    "sender_id": {"open_id": "ou_x"},
+                },
+                "message": {
+                    "message_id": "om_1",
+                    "chat_id": "oc_1",
+                    "chat_type": chat_type,
+                    "message_type": "text",
+                    "content": json.dumps({"text": text}, ensure_ascii=False),
+                    "mentions": mentions or [],
+                },
+            },
+        }
+
+    @patch("blog.feishu_views._send_chat_reply")
+    @patch("blog.feishu_views.maybe_translate_user_message")
+    @patch("blog.feishu_views.CodexSSHClient.run_turn")
+    def test_message_starts_new_codex_thread_and_persists_session(
+        self,
+        run_turn_mock,
+        translate_mock,
+        send_chat_reply_mock,
+    ):
+        translate_mock.return_value = "hello"
+        run_turn_mock.return_value = CodexTurnResult(
+            thread_id="thread_1",
+            reply_text="第一条回复",
         )
+
+        process_feishu_event(self._payload("你好"))
+
+        translate_mock.assert_called_once_with("你好")
+        run_turn_mock.assert_called_once_with("hello", thread_id="")
+        send_chat_reply_mock.assert_called_once_with("oc_1", "om_1", "第一条回复")
+        session = FeishuChatSession.objects.get(chat_id="oc_1")
+        self.assertEqual(session.codex_thread_id, "thread_1")
+        self.assertEqual(session.last_user_message, "你好")
+        self.assertEqual(session.last_assistant_message, "第一条回复")
+
+    @patch("blog.feishu_views._send_chat_reply")
+    @patch("blog.feishu_views.maybe_translate_user_message")
+    @patch("blog.feishu_views.CodexSSHClient.run_turn")
+    def test_message_resumes_existing_codex_thread(
+        self,
+        run_turn_mock,
+        translate_mock,
+        send_chat_reply_mock,
+    ):
+        FeishuChatSession.objects.create(
+            chat_id="oc_1",
+            user_open_id="ou_x",
+            codex_thread_id="thread_existing",
+        )
+        translate_mock.return_value = "continue the last topic"
+        run_turn_mock.return_value = CodexTurnResult(
+            thread_id="thread_existing",
+            reply_text="续接后的回复",
+        )
+
+        process_feishu_event(self._payload("继续上一个问题"))
+
+        translate_mock.assert_called_once_with("继续上一个问题")
+        run_turn_mock.assert_called_once_with(
+            "continue the last topic",
+            thread_id="thread_existing",
+        )
+        send_chat_reply_mock.assert_called_once_with("oc_1", "om_1", "续接后的回复")
+
+    @override_settings(FEISHU_REQUIRE_GROUP_MENTION=True)
+    @patch("blog.feishu_views.CodexSSHClient.run_turn")
+    def test_group_message_without_mention_is_ignored(self, run_turn_mock):
+        process_feishu_event(self._payload("群消息", chat_type="group"))
+
+        run_turn_mock.assert_not_called()
+        self.assertFalse(FeishuChatSession.objects.exists())
+
+    @patch("blog.feishu_views._send_chat_reply")
+    @patch("blog.feishu_views.maybe_translate_user_message")
+    @patch("blog.feishu_views.CodexSSHClient.run_turn")
+    def test_codex_error_is_returned_to_user(
+        self,
+        run_turn_mock,
+        translate_mock,
+        send_chat_reply_mock,
+    ):
+        translate_mock.return_value = "hello"
+        run_turn_mock.side_effect = CodexExecutionError("resume failed")
+
+        process_feishu_event(self._payload("你好"))
+
+        send_chat_reply_mock.assert_called_once()
+        self.assertIn("Codex 调用失败", send_chat_reply_mock.call_args.args[2])
