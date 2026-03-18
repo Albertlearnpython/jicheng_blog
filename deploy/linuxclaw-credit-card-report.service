@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily QQ credit card email report for linuxclaw-web
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/linuxclaw-release
+ExecStart=/bin/sh -lc '/usr/bin/docker exec linuxclaw-web python /app/blogsite/manage.py credit_card_report --days-ago 1'

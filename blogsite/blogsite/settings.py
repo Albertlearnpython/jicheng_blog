@@ -80,6 +80,26 @@ CODEX_TIMEOUT_SECONDS = int(os.environ.get("CODEX_TIMEOUT_SECONDS", "180"))
 CODEX_MAX_OUTPUT_CHARS = int(os.environ.get("CODEX_MAX_OUTPUT_CHARS", "12000"))
 CODEX_DISABLE_RESPONSE_STORAGE = env_bool("CODEX_DISABLE_RESPONSE_STORAGE", True)
 
+QQ_EMAIL_ADDRESS = os.environ.get("QQ_EMAIL_ADDRESS", "").strip()
+QQ_EMAIL_APP_PASSWORD = os.environ.get("QQ_EMAIL_APP_PASSWORD", "").strip()
+QQ_IMAP_HOST = os.environ.get("QQ_IMAP_HOST", "imap.qq.com").strip() or "imap.qq.com"
+QQ_IMAP_PORT = int(os.environ.get("QQ_IMAP_PORT", "993"))
+
+CREDIT_CARD_REPORT_TIME_ZONE = (
+    os.environ.get("CREDIT_CARD_REPORT_TIME_ZONE", TIME_ZONE).strip() or TIME_ZONE
+)
+CREDIT_CARD_REPORT_MAILBOX = (
+    os.environ.get("CREDIT_CARD_REPORT_MAILBOX", "INBOX").strip() or "INBOX"
+)
+CREDIT_CARD_REPORT_MAX_MESSAGES = int(os.environ.get("CREDIT_CARD_REPORT_MAX_MESSAGES", "200"))
+CREDIT_CARD_REPORT_OUTPUT_DIR = (
+    os.environ.get(
+        "CREDIT_CARD_REPORT_OUTPUT_DIR",
+        str(BASE_DIR.parent / "data" / "credit_card_reports"),
+    ).strip()
+    or str(BASE_DIR.parent / "data" / "credit_card_reports")
+)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

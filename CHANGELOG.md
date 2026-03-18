@@ -2,6 +2,12 @@
 
 ## 2026-03-19
 
+### Add daily QQ Mail credit-card spending report
+- Added a QQ Mail IMAP credit-card report module that extracts same-day spending notifications, total spend, merchant data, and category summaries.
+- Added a `manage.py credit_card_report` command that writes both JSON and text reports into the persistent `data/` directory.
+- Added deployment templates for a daily Linux `systemd` timer that can run the report at `22:00`.
+- Extended environment-variable documentation for QQ Mail and report output settings.
+
 ### Simplify linuxclaw-web into a Feishu-to-Codex bot
 - Removed the previous blog, AI web chat, terminal, calendar, and repository-planning feature set.
 - Rebuilt the service as a minimal Django webhook that only handles Feishu callbacks and health checks.

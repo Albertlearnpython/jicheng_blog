@@ -1,0 +1,10 @@
+[Unit]
+Description=Run QQ credit card email report every day at 22:00
+
+[Timer]
+OnCalendar=*-*-* 22:00:00
+Persistent=true
+Unit=linuxclaw-credit-card-report.service
+
+[Install]
+WantedBy=timers.target

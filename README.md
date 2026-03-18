@@ -27,6 +27,7 @@
 - Duplicate callback suppression by `event_id`
 - Persistent Codex conversation continuity
 - Docker deployment
+- Daily QQ Mail credit-card spending report command
 
 ## Removed from the old project
 
@@ -56,8 +57,40 @@ Common runtime settings:
 - `CODEX_MODEL`
 - `CODEX_REASONING_EFFORT`
 - `CODEX_TIMEOUT_SECONDS`
+- `QQ_EMAIL_ADDRESS`
+- `QQ_EMAIL_APP_PASSWORD`
+- `QQ_IMAP_HOST`
+- `QQ_IMAP_PORT`
+- `CREDIT_CARD_REPORT_OUTPUT_DIR`
 
 Reference values are in `.env.example`.
+
+## Daily credit-card report
+
+The repo now includes a Django management command that reads QQ Mail over IMAP, identifies same-day credit-card spending emails, and writes both JSON and text summaries.
+
+Manual run:
+
+```bash
+cd blogsite
+python manage.py credit_card_report
+```
+
+Optional date override:
+
+```bash
+cd blogsite
+python manage.py credit_card_report --date 2026-03-19
+```
+
+Output files default to:
+
+- `/app/data/credit_card_reports/YYYY-MM-DD.json`
+- `/app/data/credit_card_reports/YYYY-MM-DD.txt`
+
+`deploy/linuxclaw-credit-card-report.service` and `deploy/linuxclaw-credit-card-report.timer` provide a host-side `systemd` template that runs the command every day at `22:00`.
+
+The bundled timer uses `--days-ago 1` because the current mailbox pattern is a next-day digest mail (`每日信用管家`) that summarizes the previous day's credit-card spending.
 
 ## Local run
 
