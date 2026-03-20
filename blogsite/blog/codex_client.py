@@ -31,7 +31,11 @@ class CodexSSHClient:
     _RETRYABLE_RESUME_MARKERS = ("not found", "no matching", "unknown", "missing")
 
     def run_turn(self, user_message, thread_id="", sandbox="", workdir=""):
-        prompt = self._build_prompt(user_message)
+        prompt = self._build_prompt(
+            user_message,
+            sandbox=sandbox,
+            workdir=workdir,
+        )
 
         try:
             return self._run_remote_turn(
@@ -159,16 +163,41 @@ class CodexSSHClient:
 
         return " ".join(shlex.quote(part) for part in command)
 
-    def _build_prompt(self, user_message):
+    def _build_prompt(self, user_message, sandbox="", workdir=""):
         cleaned = (user_message or "").strip()
         if not cleaned:
             raise CodexExecutionError("Incoming Feishu message is empty.")
+
+        sandbox = (sandbox or settings.CODEX_SANDBOX).strip() or settings.CODEX_SANDBOX
+        workdir = (workdir or settings.CODEX_WORKDIR).strip() or settings.CODEX_WORKDIR
+        is_privileged = sandbox == "danger-full-access"
+
+        capability_lines = [
+            f"Current sandbox mode: {sandbox}.",
+            f"Primary working directory: {workdir}.",
+        ]
+        if is_privileged:
+            capability_lines.extend(
+                [
+                    "This session is running on the user's Linux host with direct file and service access.",
+                    "If the user asks you to create, edit, or inspect files, run commands, or manage services, do it directly in this Codex session when feasible.",
+                    "Do not say you lack permission or local machine access unless a command actually fails.",
+                ]
+            )
+        else:
+            capability_lines.extend(
+                [
+                    "This session is intentionally restricted.",
+                    "You may inspect and analyze, but do not claim to have performed writes or host-level changes unless you actually did.",
+                ]
+            )
 
         return (
             "You are replying to a user through a Feishu bot.\n"
             "Reply in concise Chinese by default.\n"
             "Keep Markdown lightweight and readable in chat.\n"
-            "Do not claim you ran commands or changed files unless you actually did so in this Codex session.\n\n"
+            "Do not claim you ran commands or changed files unless you actually did so in this Codex session.\n"
+            f"{' '.join(capability_lines)}\n\n"
             f"User message:\n{cleaned}\n"
         )
 

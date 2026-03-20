@@ -176,6 +176,35 @@ class FeishuParsingTests(SimpleTestCase):
     @override_settings(
         CODEX_SANDBOX="danger-full-access",
         CODEX_WORKDIR="/root",
+    )
+    def test_privileged_prompt_explicitly_allows_direct_actions(self):
+        prompt = CodexSSHClient()._build_prompt(
+            "帮我创建一个文件",
+            sandbox="danger-full-access",
+            workdir="/root",
+        )
+
+        self.assertIn("direct file and service access", prompt)
+        self.assertIn("Do not say you lack permission", prompt)
+        self.assertIn("/root", prompt)
+
+    @override_settings(
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
+    )
+    def test_restricted_prompt_explicitly_calls_out_restrictions(self):
+        prompt = CodexSSHClient()._build_prompt(
+            "帮我创建一个文件",
+            sandbox="read-only",
+            workdir="/opt/linuxclaw-release",
+        )
+
+        self.assertIn("intentionally restricted", prompt)
+        self.assertIn("/opt/linuxclaw-release", prompt)
+
+    @override_settings(
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
         CODEX_RESTRICTED_SANDBOX="read-only",
         CODEX_RESTRICTED_WORKDIR="/opt/linuxclaw-release",
         CODEX_PRIVILEGED_CHAT_IDS=["oc_privileged"],
