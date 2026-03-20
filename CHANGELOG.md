@@ -2,6 +2,11 @@
 
 ## 2026-03-19
 
+### Add per-chat Codex execution policy routing
+- Added chat-specific Codex execution policy resolution so selected Feishu private chats can start new sessions with broader host access while other chats remain on restricted settings.
+- Passed resolved sandbox and workdir settings into new `codex exec` sessions without changing resume command compatibility.
+- Updated webhook tests and environment documentation for privileged chat allowlists and restricted fallback settings.
+
 ### Add database-backed credit-card report pushes
 - Added SQLite persistence for daily credit-card snapshots and per-transaction records.
 - Added a scheduled Feishu push command that can send daily, weekly, and monthly summaries from stored data.

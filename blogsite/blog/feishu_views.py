@@ -99,6 +99,25 @@ def _get_or_create_session(chat_id, user_open_id):
     return session
 
 
+def _resolve_codex_execution_policy(chat_id, user_open_id, chat_type):
+    is_privileged = chat_type == "p2p" and (
+        chat_id in settings.CODEX_PRIVILEGED_CHAT_IDS
+        or (user_open_id and user_open_id in settings.CODEX_PRIVILEGED_OPEN_IDS)
+    )
+    if is_privileged:
+        return {
+            "label": "privileged",
+            "sandbox": settings.CODEX_SANDBOX,
+            "workdir": settings.CODEX_WORKDIR,
+        }
+
+    return {
+        "label": "restricted",
+        "sandbox": settings.CODEX_RESTRICTED_SANDBOX,
+        "workdir": settings.CODEX_RESTRICTED_WORKDIR,
+    }
+
+
 @contextmanager
 def _chat_lock(chat_id):
     with _CHAT_LOCKS_GUARD:
@@ -151,13 +170,26 @@ def process_feishu_event(payload):
 
     sender_open_id = ((sender.get("sender_id") or {}).get("open_id") or "").strip()
     session = _get_or_create_session(chat_id, sender_open_id)
+    policy = _resolve_codex_execution_policy(chat_id, sender_open_id, chat_type)
 
     try:
         with _chat_lock(chat_id):
             session.refresh_from_db()
+            logger.info(
+                "Using Codex policy: chat_id=%s mode=%s sandbox=%s workdir=%s",
+                chat_id,
+                policy["label"],
+                policy["sandbox"],
+                policy["workdir"],
+            )
             codex = CodexSSHClient()
             translated_text = maybe_translate_user_message(text)
-            result = codex.run_turn(translated_text, thread_id=session.codex_thread_id)
+            result = codex.run_turn(
+                translated_text,
+                thread_id=session.codex_thread_id,
+                sandbox=policy["sandbox"],
+                workdir=policy["workdir"],
+            )
             session.codex_thread_id = result.thread_id
             session.last_user_message = text
             session.last_assistant_message = result.reply_text

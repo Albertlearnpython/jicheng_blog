@@ -76,6 +76,14 @@ CODEX_WORKDIR = os.environ.get("CODEX_WORKDIR", "/root").strip() or "/root"
 CODEX_MODEL = os.environ.get("CODEX_MODEL", "gpt-5.4").strip() or "gpt-5.4"
 CODEX_REASONING_EFFORT = os.environ.get("CODEX_REASONING_EFFORT", "xhigh").strip() or "xhigh"
 CODEX_SANDBOX = os.environ.get("CODEX_SANDBOX", "read-only").strip() or "read-only"
+CODEX_RESTRICTED_WORKDIR = (
+    os.environ.get("CODEX_RESTRICTED_WORKDIR", CODEX_WORKDIR).strip() or CODEX_WORKDIR
+)
+CODEX_RESTRICTED_SANDBOX = (
+    os.environ.get("CODEX_RESTRICTED_SANDBOX", "read-only").strip() or "read-only"
+)
+CODEX_PRIVILEGED_CHAT_IDS = env_list("CODEX_PRIVILEGED_CHAT_IDS")
+CODEX_PRIVILEGED_OPEN_IDS = env_list("CODEX_PRIVILEGED_OPEN_IDS")
 CODEX_TIMEOUT_SECONDS = int(os.environ.get("CODEX_TIMEOUT_SECONDS", "180"))
 CODEX_MAX_OUTPUT_CHARS = int(os.environ.get("CODEX_MAX_OUTPUT_CHARS", "12000"))
 CODEX_DISABLE_RESPONSE_STORAGE = env_bool("CODEX_DISABLE_RESPONSE_STORAGE", True)

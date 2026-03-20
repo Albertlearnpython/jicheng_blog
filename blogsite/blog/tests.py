@@ -6,7 +6,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from .codex_client import CodexExecutionError, CodexSSHClient, CodexTurnResult
-from .feishu_views import _extract_text_message, process_feishu_event
+from .feishu_views import _extract_text_message, _resolve_codex_execution_policy, process_feishu_event
 from .models import FeishuChatSession
 from .translation_client import maybe_translate_user_message
 
@@ -161,8 +161,8 @@ class FeishuParsingTests(SimpleTestCase):
         CODEX_PROFILE="",
         CODEX_MODEL="gpt-5.4",
         CODEX_REASONING_EFFORT="xhigh",
-        CODEX_SANDBOX="read-only",
-        CODEX_WORKDIR="/opt/linuxclaw-release",
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
         CODEX_DISABLE_RESPONSE_STORAGE=True,
     )
     def test_codex_resume_command_omits_unsupported_flags(self):
@@ -173,9 +173,39 @@ class FeishuParsingTests(SimpleTestCase):
         self.assertNotIn("--cd", command)
         self.assertIn("thread_123", command)
 
+    @override_settings(
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
+        CODEX_RESTRICTED_SANDBOX="read-only",
+        CODEX_RESTRICTED_WORKDIR="/opt/linuxclaw-release",
+        CODEX_PRIVILEGED_CHAT_IDS=["oc_privileged"],
+        CODEX_PRIVILEGED_OPEN_IDS=["ou_privileged"],
+    )
+    def test_resolve_codex_execution_policy_returns_privileged_for_allowed_private_chat(self):
+        policy = _resolve_codex_execution_policy("oc_privileged", "ou_other", "p2p")
+
+        self.assertEqual(policy["label"], "privileged")
+        self.assertEqual(policy["sandbox"], "danger-full-access")
+        self.assertEqual(policy["workdir"], "/root")
+
+    @override_settings(
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
+        CODEX_RESTRICTED_SANDBOX="read-only",
+        CODEX_RESTRICTED_WORKDIR="/opt/linuxclaw-release",
+        CODEX_PRIVILEGED_CHAT_IDS=["oc_privileged"],
+        CODEX_PRIVILEGED_OPEN_IDS=["ou_privileged"],
+    )
+    def test_resolve_codex_execution_policy_keeps_group_chat_restricted(self):
+        policy = _resolve_codex_execution_policy("oc_group", "ou_privileged", "group")
+
+        self.assertEqual(policy["label"], "restricted")
+        self.assertEqual(policy["sandbox"], "read-only")
+        self.assertEqual(policy["workdir"], "/opt/linuxclaw-release")
+
 
 class FeishuRoutingTests(TestCase):
-    def _payload(self, text, *, mentions=None, chat_type="p2p"):
+    def _payload(self, text, *, mentions=None, chat_type="p2p", chat_id="oc_1", open_id="ou_x"):
         return {
             "schema": "2.0",
             "header": {
@@ -186,11 +216,11 @@ class FeishuRoutingTests(TestCase):
             "event": {
                 "sender": {
                     "sender_type": "user",
-                    "sender_id": {"open_id": "ou_x"},
+                    "sender_id": {"open_id": open_id},
                 },
                 "message": {
                     "message_id": "om_1",
-                    "chat_id": "oc_1",
+                    "chat_id": chat_id,
                     "chat_type": chat_type,
                     "message_type": "text",
                     "content": json.dumps({"text": text}, ensure_ascii=False),
@@ -198,6 +228,72 @@ class FeishuRoutingTests(TestCase):
                 },
             },
         }
+
+    @patch("blog.feishu_views._send_chat_reply")
+    @patch("blog.feishu_views.maybe_translate_user_message")
+    @patch("blog.feishu_views.CodexSSHClient.run_turn")
+    @override_settings(
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
+        CODEX_RESTRICTED_SANDBOX="read-only",
+        CODEX_RESTRICTED_WORKDIR="/opt/linuxclaw-release",
+        CODEX_PRIVILEGED_CHAT_IDS=["oc_privileged"],
+        CODEX_PRIVILEGED_OPEN_IDS=[],
+    )
+    def test_privileged_private_chat_uses_danger_full_access(
+        self,
+        run_turn_mock,
+        translate_mock,
+        send_chat_reply_mock,
+    ):
+        translate_mock.return_value = "hello"
+        run_turn_mock.return_value = CodexTurnResult(
+            thread_id="thread_privileged",
+            reply_text="第一条回复",
+        )
+
+        process_feishu_event(self._payload("你好", chat_id="oc_privileged"))
+
+        run_turn_mock.assert_called_once_with(
+            "hello",
+            thread_id="",
+            sandbox="danger-full-access",
+            workdir="/root",
+        )
+        send_chat_reply_mock.assert_called_once_with("oc_privileged", "om_1", "第一条回复")
+
+    @patch("blog.feishu_views._send_chat_reply")
+    @patch("blog.feishu_views.maybe_translate_user_message")
+    @patch("blog.feishu_views.CodexSSHClient.run_turn")
+    @override_settings(
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
+        CODEX_RESTRICTED_SANDBOX="read-only",
+        CODEX_RESTRICTED_WORKDIR="/opt/linuxclaw-release",
+        CODEX_PRIVILEGED_CHAT_IDS=["oc_privileged"],
+        CODEX_PRIVILEGED_OPEN_IDS=[],
+    )
+    def test_other_private_chats_stay_read_only(
+        self,
+        run_turn_mock,
+        translate_mock,
+        send_chat_reply_mock,
+    ):
+        translate_mock.return_value = "hello"
+        run_turn_mock.return_value = CodexTurnResult(
+            thread_id="thread_restricted",
+            reply_text="第一条回复",
+        )
+
+        process_feishu_event(self._payload("你好", chat_id="oc_other"))
+
+        run_turn_mock.assert_called_once_with(
+            "hello",
+            thread_id="",
+            sandbox="read-only",
+            workdir="/opt/linuxclaw-release",
+        )
+        send_chat_reply_mock.assert_called_once_with("oc_other", "om_1", "第一条回复")
 
     @patch("blog.feishu_views._send_chat_reply")
     @patch("blog.feishu_views.maybe_translate_user_message")
@@ -217,12 +313,11 @@ class FeishuRoutingTests(TestCase):
         process_feishu_event(self._payload("你好"))
 
         translate_mock.assert_called_once_with("你好")
-        run_turn_mock.assert_called_once_with("hello", thread_id="")
-        send_chat_reply_mock.assert_called_once_with("oc_1", "om_1", "第一条回复")
         session = FeishuChatSession.objects.get(chat_id="oc_1")
         self.assertEqual(session.codex_thread_id, "thread_1")
         self.assertEqual(session.last_user_message, "你好")
         self.assertEqual(session.last_assistant_message, "第一条回复")
+        send_chat_reply_mock.assert_called_once_with("oc_1", "om_1", "第一条回复")
 
     @patch("blog.feishu_views._send_chat_reply")
     @patch("blog.feishu_views.maybe_translate_user_message")
@@ -244,12 +339,14 @@ class FeishuRoutingTests(TestCase):
             reply_text="续接后的回复",
         )
 
-        process_feishu_event(self._payload("继续上一个问题"))
+        process_feishu_event(self._payload("继续上一轮问题"))
 
-        translate_mock.assert_called_once_with("继续上一个问题")
+        translate_mock.assert_called_once_with("继续上一轮问题")
         run_turn_mock.assert_called_once_with(
             "continue the last topic",
             thread_id="thread_existing",
+            sandbox="read-only",
+            workdir="/root",
         )
         send_chat_reply_mock.assert_called_once_with("oc_1", "om_1", "续接后的回复")
 

@@ -7,6 +7,7 @@
 - Forward each message to Codex CLI over SSH
 - Reply back to Feishu with the Codex answer
 - Persist one Codex thread per Feishu `chat_id`, so later messages continue the same session
+- Resolve Codex execution policy per Feishu chat, so selected private chats can run with broader host access while other chats stay restricted
 
 ## Request flow
 
@@ -15,7 +16,7 @@
 3. Chinese messages are normalized and rewritten into pinyin prompt text when needed
 4. The service looks up the saved `codex_thread_id` for that Feishu chat
 5. It runs either:
-   - `codex exec ...` for a new conversation
+   - `codex exec ...` for a new conversation, using the execution policy resolved for that Feishu chat
    - `codex exec resume <thread_id> ...` for a continued conversation
 6. The returned reply is sent back to Feishu
 7. The latest `codex_thread_id` is stored in SQLite for the next turn
@@ -26,6 +27,7 @@
 - Group-message mention gating
 - Duplicate callback suppression by `event_id`
 - Persistent Codex conversation continuity
+- Per-chat Codex execution policy routing
 - Docker deployment
 - Daily QQ Mail credit-card spending report command
 - Daily credit-card snapshots stored in SQLite
@@ -56,8 +58,13 @@ Common runtime settings:
 - `FEISHU_REQUIRE_GROUP_MENTION`
 - `CODEX_BIN`
 - `CODEX_WORKDIR`
+- `CODEX_RESTRICTED_WORKDIR`
 - `CODEX_MODEL`
 - `CODEX_REASONING_EFFORT`
+- `CODEX_SANDBOX`
+- `CODEX_RESTRICTED_SANDBOX`
+- `CODEX_PRIVILEGED_CHAT_IDS`
+- `CODEX_PRIVILEGED_OPEN_IDS`
 - `CODEX_TIMEOUT_SECONDS`
 - `QQ_EMAIL_ADDRESS`
 - `QQ_EMAIL_APP_PASSWORD`

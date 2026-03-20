@@ -30,19 +30,33 @@ class CodexTurnResult:
 class CodexSSHClient:
     _RETRYABLE_RESUME_MARKERS = ("not found", "no matching", "unknown", "missing")
 
-    def run_turn(self, user_message, thread_id=""):
+    def run_turn(self, user_message, thread_id="", sandbox="", workdir=""):
         prompt = self._build_prompt(user_message)
 
         try:
-            return self._run_remote_turn(prompt, thread_id=thread_id)
+            return self._run_remote_turn(
+                prompt,
+                thread_id=thread_id,
+                sandbox=sandbox,
+                workdir=workdir,
+            )
         except CodexExecutionError as exc:
             if thread_id and self._should_retry_without_thread(exc):
-                return self._run_remote_turn(prompt, thread_id="")
+                return self._run_remote_turn(
+                    prompt,
+                    thread_id="",
+                    sandbox=sandbox,
+                    workdir=workdir,
+                )
             raise
 
-    def _run_remote_turn(self, prompt, thread_id=""):
+    def _run_remote_turn(self, prompt, thread_id="", sandbox="", workdir=""):
         client = self._connect()
-        command = self._build_command(thread_id=thread_id)
+        command = self._build_command(
+            thread_id=thread_id,
+            sandbox=sandbox,
+            workdir=workdir,
+        )
 
         try:
             stdin, stdout, stderr = client.exec_command(
@@ -101,7 +115,10 @@ class CodexSSHClient:
 
         return client
 
-    def _build_command(self, thread_id=""):
+    def _build_command(self, thread_id="", sandbox="", workdir=""):
+        sandbox = (sandbox or settings.CODEX_SANDBOX).strip() or settings.CODEX_SANDBOX
+        workdir = (workdir or settings.CODEX_WORKDIR).strip() or settings.CODEX_WORKDIR
+
         if thread_id:
             command = [
                 settings.CODEX_BIN,
@@ -123,9 +140,9 @@ class CodexSSHClient:
                     "--json",
                     "--skip-git-repo-check",
                     "--sandbox",
-                    settings.CODEX_SANDBOX,
+                    sandbox,
                     "--cd",
-                    settings.CODEX_WORKDIR,
+                    workdir,
                     "--model",
                     settings.CODEX_MODEL,
                     "-c",
