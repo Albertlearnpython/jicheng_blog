@@ -192,6 +192,23 @@ class FeishuParsingTests(SimpleTestCase):
         CODEX_SANDBOX="danger-full-access",
         CODEX_WORKDIR="/root",
     )
+    def test_prompt_includes_first_principles_and_two_section_response_contract(self):
+        prompt = CodexSSHClient()._build_prompt(
+            "请帮我分析服务器告警并处理",
+            sandbox="danger-full-access",
+            workdir="/root",
+        )
+
+        self.assertIn("Use first-principles reasoning", prompt)
+        self.assertIn("Direct execution", prompt)
+        self.assertIn("Deep interaction", prompt)
+        self.assertIn("`直接执行`", prompt)
+        self.assertIn("`深度交互`", prompt)
+
+    @override_settings(
+        CODEX_SANDBOX="danger-full-access",
+        CODEX_WORKDIR="/root",
+    )
     def test_restricted_prompt_explicitly_calls_out_restrictions(self):
         prompt = CodexSSHClient()._build_prompt(
             "帮我创建一个文件",

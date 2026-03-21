@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-03-21
+
+### Strengthen the Feishu Codex steward prompt contract
+- Added a first-principles instruction block to the Feishu-to-Codex system prompt so the Linux steward avoids cargo-cult reasoning and challenges suboptimal paths.
+- Enforced a two-part reply structure for steward responses: `直接执行` for the immediate task result and `深度交互` for careful challenge, risk analysis, and better alternatives.
+- Kept the existing privileged-versus-restricted execution guidance intact so owner private chats can still act directly on the host while restricted chats remain honest about limits.
+- Added a prompt regression test and redeployed the `linuxclaw-web` container with the updated prompt contract.
+
 ## 2026-03-19
 
 ### Add per-chat Codex execution policy routing
